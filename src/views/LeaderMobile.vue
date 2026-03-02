@@ -1,0 +1,425 @@
+<template>
+  <div class="app-shell max-w-[450px] mx-auto min-h-screen flex flex-col bg-[#F2F4F7] font-sans">
+    
+    <!-- Loader -->
+    <div v-if="loading" class="fixed inset-0 bg-white/80 z-[9999] flex flex-col items-center justify-center backdrop-blur-sm">
+      <div class="w-10 h-10 border-4 border-slate-200 border-t-[#EE4D2D] rounded-full animate-spin"></div>
+      <p class="font-bold text-slate-400 text-xs mt-4 tracking-widest uppercase">Processando...</p>
+    </div>
+
+    <!-- Login Screen -->
+    <div v-if="!logado" class="flex-1 flex flex-col justify-center p-8 text-center animate-in fade-in duration-500">
+      <div class="w-[70px] h-[70px] bg-[#EE4D2D] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-brand-orange/30">
+        <i class="ph-fill ph-barcode text-white text-4xl"></i>
+      </div>
+      <h2 class="text-2xl font-black text-[#113366]">Líder PDA</h2>
+      <p class="text-slate-400 text-sm mb-8">Selecione seu nome para acessar o painel</p>
+      
+      <select v-model="selectedLiderId" class="w-full bg-white border-2 border-slate-200 rounded-2xl p-4 font-bold text-[#113366] mb-4 outline-none focus:border-[#EE4D2D]">
+        <option disabled value="">Quem é você?</option>
+        <option v-for="l in lideres" :key="l.id" :value="l.id">{{ l.nome }}</option>
+      </select>
+      
+      <button @click="handleLogin" :disabled="!selectedLiderId || loading" 
+              class="w-full bg-[#EE4D2D] text-white py-4 rounded-2xl font-black shadow-xl shadow-brand-orange/20 active:scale-95 transition-all disabled:opacity-30">
+        ACESSAR AGORA
+      </button>
+    </div>
+
+    <!-- App Content -->
+    <template v-else>
+      <!-- Header -->
+      <div class="bg-gradient-to-br from-[#113366] to-[#1a4a8a] text-white p-6 pb-20 rounded-b-[40px] shadow-xl relative animate-in slide-in-from-top duration-300">
+        <div class="flex justify-between items-center mb-2">
+          <div @click="toggleAreaSelector" class="cursor-pointer">
+            <div class="text-[10px] opacity-70 flex items-center gap-1 font-bold uppercase tracking-widest mb-1">
+              {{ userData.areas?.nome || 'Sem Área' }}
+              <i class="ph-bold ph-caret-down text-[8px]"></i>
+            </div>
+            <h5 class="text-xl font-black tracking-tight">{{ userData.nome }}</h5>
+          </div>
+          <div class="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center text-lg font-black border-2 border-white/30">
+            {{ userData.nome?.charAt(0) }}
+          </div>
+        </div>
+        <div class="mt-4">
+          <span class="bg-white/10 text-white text-[10px] font-black px-4 py-2 rounded-full border border-white/10 shadow-sm uppercase tracking-wider">
+            {{ operationalInfo.dataOperacional }} | {{ operationalInfo.turno }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Content Area -->
+      <div class="flex-1 -mt-16 px-5 pb-24 z-10 transition-all overflow-y-auto">
+        <!-- Balance Card -->
+        <div v-if="currentTab === 'home'" class="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 mb-6 animate-in zoom-in-95 duration-200">
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Meus Coletores</p>
+          <div class="text-6xl font-black text-[#EE4D2D] leading-none mb-3">{{ myAssets.length }}</div>
+          <div class="inline-flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-full text-[10px] font-black uppercase">
+            <i class="ph-fill ph-check-circle"></i> Em operação
+          </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div v-if="currentTab === 'home'" class="space-y-6 animate-in fade-in duration-300">
+          <!-- Inbox Transf -->
+          <div v-if="pendingTransfers.length > 0" class="space-y-3">
+             <p class="text-[10px] font-black text-[#EE4D2D] uppercase tracking-widest animate-pulse flex items-center gap-2">
+               <i class="ph-fill ph-warning-circle"></i> Trocas Pendentes
+             </p>
+             <div v-for="trc in pendingTransfers" :key="trc.id" 
+                  class="bg-white border-2 border-indigo-100 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
+                <div class="text-xs font-black text-slate-400 uppercase mb-1">Líder: {{ trc.lideres_origem?.nome }}</div>
+                <div class="text-indigo-600 font-mono font-black mb-3">{{ trc.sns?.join(', ') }}</div>
+                <div class="flex gap-2">
+                  <button @click="handleResponseTransfer(trc.id, false)" class="flex-1 bg-slate-100 text-slate-500 py-2 rounded-xl text-[10px] font-black uppercase">Recusar</button>
+                  <button @click="handleResponseTransfer(trc.id, true)" class="flex-1 bg-indigo-500 text-white py-2 rounded-xl text-[10px] font-black uppercase">Aceitar</button>
+                </div>
+             </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="grid grid-cols-2 gap-4">
+             <div @click="currentTab = 'pedir'" class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center gap-3 active:scale-95 transition-all">
+                <div class="w-12 h-12 bg-red-50 text-[#EE4D2D] rounded-2xl flex items-center justify-center text-2xl font-black">
+                  <i class="ph ph-plus"></i>
+                </div>
+                <span class="text-xs font-black text-slate-500 uppercase">Pedir PDA</span>
+             </div>
+             <div @click="currentTab = 'trocar'" class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center gap-3 active:scale-95 transition-all">
+                <div class="w-12 h-12 bg-blue-50 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl font-black">
+                  <i class="ph ph-arrows-left-right"></i>
+                </div>
+                <span class="text-xs font-black text-slate-500 uppercase">Fazer Troca</span>
+             </div>
+          </div>
+
+          <!-- Assets List -->
+          <div>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Lista de SNs</p>
+            <div class="flex flex-wrap gap-2">
+               <span v-for="a in myAssets" :key="a.sn" class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2 font-mono font-black text-[#113366] text-sm shadow-sm">
+                 {{ a.sn }}
+               </span>
+               <div v-if="!myAssets.length" class="text-slate-300 italic text-xs font-medium">Nenhum coletor atribuído...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pedir Content -->
+        <div v-if="currentTab === 'pedir'" class="space-y-6 animate-in slide-in-from-bottom-5 duration-300">
+           <div class="bg-white p-6 rounded-[32px] shadow-xl shadow-slate-200/50 space-y-6">
+              <h5 class="text-xl font-black text-[#113366] flex items-center gap-2">
+                <i class="ph-fill ph-plus-circle text-[#EE4D2D]"></i> Novo Pedido
+              </h5>
+              <div>
+                <label class="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest font-sans">Quantidade</label>
+                <input type="number" v-model="formOrder.qty" class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-2xl font-black text-[#113366] outline-none focus:border-[#EE4D2D]">
+              </div>
+              <button @click="handleSubmitOrder" :disabled="!formOrder.qty || formOrder.qty <= 0 || loading"
+                      class="w-full bg-[#EE4D2D] text-white py-5 rounded-2xl font-black shadow-xl shadow-brand-orange/20 uppercase tracking-widest">
+                Solicitar Agora
+              </button>
+           </div>
+
+           <div>
+              <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Histórico Recente</p>
+              <div v-for="order in requestHistory" :key="order.id" class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center mb-3">
+                 <div class="font-black text-slate-700">{{ order.quantidade }} un.</div>
+                 <span :class="['text-[9px] font-black uppercase px-3 py-1 rounded-full border', statusClass(order.status)]">{{ order.status }}</span>
+              </div>
+           </div>
+        </div>
+
+        <!-- Trocar Content -->
+        <div v-if="currentTab === 'trocar'" class="space-y-6 animate-in slide-in-from-bottom-5 duration-300">
+           <div class="bg-white p-6 rounded-[32px] shadow-xl shadow-slate-200/50 space-y-6">
+              <h5 class="text-xl font-black text-[#113366] flex items-center gap-2">
+                <i class="ph ph-arrows-left-right text-indigo-600"></i> Troca entre Líderes
+              </h5>
+              <div class="space-y-4">
+                 <div>
+                    <label class="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">Destinatário</label>
+                    <select v-model="formTransfer.targetId" class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-black text-slate-600 outline-none focus:border-indigo-500">
+                        <option disabled value="">Quem vai receber?</option>
+                        <option v-for="l in otherLideres" :key="l.id" :value="l.id">{{ l.nome }}</option>
+                    </select>
+                 </div>
+                 <div>
+                    <label class="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">Selecione os coletores</label>
+                    <div class="grid grid-cols-2 gap-2">
+                       <label v-for="a in myAssets" :key="a.sn" 
+                              :class="['p-4 rounded-2xl border-2 flex items-center gap-3 transition-all cursor-pointer font-mono font-black text-sm', 
+                                      formTransfer.sns.includes(a.sn) ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-50 bg-slate-50 text-slate-400']">
+                          <input type="checkbox" v-model="formTransfer.sns" :value="a.sn" class="hidden">
+                          {{ a.sn }}
+                       </label>
+                    </div>
+                 </div>
+                 <button @click="handleSubmitTransfer" :disabled="!formTransfer.targetId || !formTransfer.sns.length || loading"
+                         class="w-full bg-[#113366] text-white py-5 rounded-2xl font-black shadow-xl shadow-brand-blue/20 uppercase tracking-widest">
+                    Propor Troca
+                  </button>
+              </div>
+           </div>
+        </div>
+      </div>
+
+      <!-- Bottom Nav -->
+      <nav class="fixed bottom-0 left-0 right-0 max-w-[450px] mx-auto bg-white border-t border-slate-100 flex p-3 pb-6 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-[100] transition-all">
+        <button v-for="nav in navItems" :key="nav.id" @click="currentTab = nav.id" 
+                :class="['flex-1 flex flex-col items-center gap-1 font-black text-[9px] uppercase tracking-tighter transition-colors', 
+                        currentTab === nav.id ? 'text-[#EE4D2D]' : 'text-slate-300']">
+          <i :class="['text-2xl', currentTab === nav.id ? nav.iconActive : nav.icon]"></i>
+          {{ nav.label }}
+        </button>
+        <button @click="fetchInitialData" class="flex-1 flex flex-col items-center gap-1 text-slate-300 font-black text-[9px] uppercase tracking-tighter relative">
+          <i class="ph ph-arrows-clockwise text-2xl transition-transform duration-700" :class="{ 'rotate-180': !loading }"></i>
+          Atualizar
+          <div v-if="pendingTransfers.length" class="absolute top-0 right-1/4 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px] border-2 border-white">!</div>
+        </button>
+      </nav>
+
+      <!-- Area Selector Modal -->
+      <div v-if="showingAreaSelector" class="fixed inset-0 bg-[#113366]/80 backdrop-blur-md z-[1000] flex items-end animate-in fade-in duration-300">
+         <div class="w-full bg-white rounded-t-[40px] p-8 pb-12 animate-in slide-in-from-bottom duration-300">
+            <h5 class="text-xl font-black text-[#113366] mb-6">Em qual área você está?</h5>
+            <div class="grid grid-cols-2 gap-3 mb-8">
+               <div v-for="area in areas" :key="area.id" 
+                    @click="handleChangeArea(area.id, area.nome)"
+                    class="p-4 rounded-2xl border-2 font-black text-center text-sm transition-all"
+                    :class="userData.area_id === area.id ? 'border-[#EE4D2D] bg-red-50 text-[#EE4D2D]' : 'border-slate-50 bg-slate-50 text-slate-400'">
+                 {{ area.nome }}
+               </div>
+            </div>
+            <button @click="showingAreaSelector = false" class="w-full py-2 text-slate-400 font-black text-xs uppercase tracking-widest">Fechar</button>
+         </div>
+      </div>
+
+    </template>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { supabase } from '../lib/supabase';
+import { getInfoOperacional } from '../utils/shiftLogic';
+
+// State
+const logado = ref(false);
+const loading = ref(true);
+const currentTab = ref('home');
+const lideres = ref([]);
+const areas = ref([]);
+const selectedLiderId = ref('');
+const userData = ref({});
+const myAssets = ref([]);
+const pendingTransfers = ref([]);
+const requestHistory = ref([]);
+const operationalInfo = ref({});
+const showingAreaSelector = ref(false);
+
+// Forms
+const formOrder = ref({ qty: 1, obs: '' });
+const formTransfer = ref({ targetId: '', sns: [] });
+
+// Static
+const navItems = [
+  { id: 'home', label: 'Início', icon: 'ph ph-house', iconActive: 'ph-fill ph-house' },
+  { id: 'pedir', label: 'Solicitar', icon: 'ph ph-plus-circle', iconActive: 'ph-fill ph-plus-circle' },
+  { id: 'trocar', label: 'Transferir', icon: 'ph ph-arrows-left-right', iconActive: 'ph-bold ph-arrows-left-right' }
+];
+
+// Computed
+const otherLideres = computed(() => lideres.value.filter(l => l.id !== userData.value.id));
+
+// Methods
+const handleLogin = async () => {
+  loading.value = true;
+  try {
+    const { data: user, error } = await supabase
+      .from('lideres')
+      .select('*, areas(nome)')
+      .eq('id', selectedLiderId.value)
+      .single();
+    if (error) throw error;
+    
+    userData.value = user;
+    logado.value = true;
+    localStorage.setItem('pda_lider_id', user.id);
+    
+    await fetchInitialData();
+  } catch (e) {
+    alert('Erro no login: ' + e.message);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const fetchInitialData = async () => {
+  if (!logado.value) {
+    const { data: lid } = await supabase.from('lideres').select('id, nome').order('nome');
+    lideres.value = lid || [];
+    loading.value = false;
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const userId = userData.value.id;
+
+    // Refresh User Data (Area etc)
+    const { data: user } = await supabase.from('lideres').select('*, areas(nome)').eq('id', userId).single();
+    if (user) userData.value = user;
+
+    // Get My Assets
+    const { data: assets } = await supabase.from('ativos_atuais').select('sn').eq('responsavel_id', userId);
+    myAssets.value = assets || [];
+
+    // Get Pending Transfers (where I am destination and status is PENDENTE)
+    const { data: trc } = await supabase.from('trocas')
+      .select('*, lideres_origem:lider_origem(nome)')
+      .eq('lider_destino', userId)
+      .eq('status_destino', 'PENDENTE')
+      .eq('status_geral', 'AGUARDANDO');
+    pendingTransfers.value = trc || [];
+
+    // Get My Requests
+    const { data: req } = await supabase.from('solicitacoes')
+      .select('*')
+      .eq('lider_id', userId)
+      .order('data', { ascending: false })
+      .limit(5);
+    requestHistory.value = req || [];
+
+    // All Lideres for Transfers
+    const { data: allLid } = await supabase.from('lideres').select('id, nome').order('nome');
+    lideres.value = allLid || [];
+
+    // All Areas
+    const { data: allAreas } = await supabase.from('areas').select('*').order('nome');
+    areas.value = allAreas || [];
+
+    operationalInfo.value = getInfoOperacional();
+
+  } catch (e) {
+    console.error(e);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleSubmitOrder = async () => {
+  loading.value = true;
+  try {
+    const { error } = await supabase.from('solicitacoes').insert({
+      lider_id: userData.value.id,
+      quantidade: formOrder.value.qty,
+      status: 'PENDENTE'
+    });
+    if (error) throw error;
+    
+    formOrder.value = { qty: 1, obs: '' };
+    currentTab.value = 'home';
+    await fetchInitialData();
+  } catch (e) {
+    alert(e.message);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleSubmitTransfer = async () => {
+  loading.value = true;
+  try {
+    const { error } = await supabase.from('trocas').insert({
+      lider_origem: userData.value.id,
+      lider_destino: formTransfer.value.targetId,
+      sns: formTransfer.value.sns,
+      status_origem: 'ACEITO',
+      status_destino: 'PENDENTE',
+      status_geral: 'AGUARDANDO'
+    });
+    if (error) throw error;
+
+    formTransfer.value = { targetId: '', sns: [] };
+    currentTab.value = 'home';
+    await fetchInitialData();
+    alert('Proposta de troca enviada!');
+  } catch (e) {
+    alert(e.message);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleResponseTransfer = async (id, accepted) => {
+  loading.value = true;
+  try {
+    if (!accepted) {
+      await supabase.from('trocas').update({ 
+        status_destino: 'RECUSADO', 
+        status_geral: 'CANCELADO' 
+      }).eq('id', id);
+    } else {
+      await supabase.from('trocas').update({ 
+        status_destino: 'ACEITO', 
+        status_geral: 'PENDENTE_ADMIN' 
+      }).eq('id', id);
+    }
+    await fetchInitialData();
+  } catch (e) {
+    alert(e.message);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleChangeArea = async (areaId, areaNome) => {
+  loading.value = true;
+  try {
+    const { error } = await supabase.from('lideres').update({ area_id: areaId }).eq('id', userData.value.id);
+    if (error) throw error;
+    
+    userData.value.area_id = areaId;
+    userData.value.areas = { nome: areaNome };
+    showingAreaSelector.value = false;
+  } catch (e) {
+    alert(e.message);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const statusClass = (s) => {
+  if (s === 'PENDENTE') return 'bg-orange-50 text-orange-600 border-orange-100';
+  if (s === 'APROVADO') return 'bg-blue-50 text-blue-600 border-blue-100';
+  if (s === 'CONCLUIDO') return 'bg-green-50 text-green-600 border-green-100';
+  return 'bg-slate-50 text-slate-400 border-slate-100';
+};
+
+const toggleAreaSelector = () => showingAreaSelector.value = !showingAreaSelector.value;
+
+// Lifecycle
+onMounted(async () => {
+  const savedId = localStorage.getItem('pda_lider_id');
+  if (savedId) {
+    selectedLiderId.value = savedId;
+    await handleLogin();
+  } else {
+    await fetchInitialData();
+  }
+
+  // Real-time
+  const sub = supabase.channel('leader-updates')
+    .on('postgres_changes', { event: '*', schema: 'public' }, () => fetchInitialData())
+    .subscribe();
+
+  onUnmounted(() => supabase.removeChannel(sub));
+});
+</script>
+
+<style scoped>
+.app-shell { box-shadow: 0 0 50px rgba(0,0,0,0.1); }
+</style>

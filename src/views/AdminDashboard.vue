@@ -245,11 +245,20 @@
             <i class="ph ph-arrow-u-up-left text-[#ee4d2d]"></i> Retorno de Ativos
           </h3>
 
-          <div class="bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-slate-200">
-            <label class="text-[10px] font-black text-[#ee4d2d] mb-2 block tracking-widest uppercase text-center">Bipar Scanner</label>
-            <input type="text" v-model="formDev.curSn" @keyup.enter="handleBiparDev" ref="inpDev"
-                   placeholder="Bipe para liberar..."
-                   class="w-full px-5 py-4 border-2 border-brand-blue/30 rounded-2xl focus:border-[#113366] outline-none font-mono font-black text-xl text-center uppercase tracking-widest shadow-sm">
+          <div class="bg-slate-50 p-6 rounded-3xl border-2 border-dashed border-slate-200 space-y-4">
+            <div>
+               <label class="text-[10px] font-black text-slate-400 mb-2 block tracking-widest uppercase">Quem está devolvendo?</label>
+               <select v-model="formDev.responsavelId" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#113366] outline-none font-bold text-slate-600 bg-white shadow-sm">
+                 <option disabled value="">Selecione o Líder...</option>
+                 <option v-for="l in lideres" :key="l.id" :value="l.id">{{ l.nome }} ({{ l.areas?.nome }})</option>
+               </select>
+            </div>
+            <div>
+               <label class="text-[10px] font-black text-[#ee4d2d] mb-2 block tracking-widest uppercase text-center mt-4">Bipar Scanner</label>
+               <input type="text" v-model="formDev.curSn" @keyup.enter="handleBiparDev" ref="inpDev"
+                      placeholder="Bipe para liberar..."
+                      class="w-full px-5 py-4 border-2 border-brand-blue/30 rounded-2xl focus:border-[#113366] outline-none font-mono font-black text-xl text-center uppercase tracking-widest shadow-sm">
+            </div>
           </div>
 
           <div v-if="formDev.list.length" class="space-y-3">
@@ -563,8 +572,9 @@ const filtroOnPage = ref({ data_op: '', turno: '' });
 const configSubTab = ref('areas');
 
 // Forms
+// Forms
 const formEmp = ref({ responsavelId: '', curSn: '', sns: [] });
-const formDev = ref({ curSn: '', list: [] });
+const formDev = ref({ responsavelId: '', curSn: '', list: [] });
 const modal = ref({ ativo: false, sol: null, sns: [], currentSn: '' });
 const formPlan = ref({ data: '', turno: 'T1', areas: {} }); // Changed data_op to data since I replaced it
 const formNewArea = ref({ nome: '' });
@@ -831,6 +841,10 @@ const handleBiparDev = () => {
 };
 
 const handleRecordingReturn = async () => {
+  if (!formDev.value.responsavelId) {
+    showMessage('Selecione quem está devolvendo os aparelhos!', 'erro');
+    return;
+  }
   loading.value = true;
   try {
     const sns = formDev.value.list.map(i => i.sn);
@@ -840,10 +854,18 @@ const handleRecordingReturn = async () => {
         status: item.condicao === 'Quebrado' ? 'Quebrado' : 'Disponível',
         observacao: item.observacao
       }).eq('sn', item.sn);
-      await supabase.from('movimentacoes').insert({ sn: item.sn, tipo: 'Retorno', condicao: item.condicao, observacao: item.observacao, admin_id: 'Admin Web' });
+      
+      await supabase.from('movimentacoes').insert({ 
+        sn: item.sn, 
+        tipo: 'Retorno', 
+        condicao: item.condicao, 
+        observacao: item.observacao, 
+        responsavel_id: formDev.value.responsavelId,
+        admin_id: 'Admin Web' 
+      });
     }
     showMessage(`${sns.length} retornos processados!`);
-    formDev.value = { curSn: '', list: [] };
+    formDev.value = { responsavelId: '', curSn: '', list: [] };
     await fetchInitialData(); // Force Refresh
   } catch (e) {
     showMessage(e.message, 'erro');

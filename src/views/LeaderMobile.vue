@@ -143,11 +143,16 @@
                 <i class="ph-fill ph-plus-circle text-[#EE4D2D]"></i> Novo Pedido
               </h5>
               <div>
-                <label class="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest font-sans">Quantidade</label>
-                <input type="number" v-model="formOrder.qty" class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-2xl font-black text-[#113366] outline-none focus:border-[#EE4D2D]">
+                <div class="flex justify-between items-end mb-2">
+                   <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest font-sans">Quantidade</label>
+                   <span class="text-[10px] font-bold" :class="remainingAllowed > 0 ? 'text-indigo-500' : 'text-red-500'">
+                      Máximo permitido: {{ remainingAllowed > 0 ? remainingAllowed : 0 }}
+                   </span>
+                </div>
+                <input type="number" v-model="formOrder.qty" :max="remainingAllowed > 0 ? remainingAllowed : 0" class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-2xl font-black text-[#113366] outline-none focus:border-[#EE4D2D]">
               </div>
-              <button @click="handleSubmitOrder" :disabled="!formOrder.qty || formOrder.qty <= 0 || loading"
-                      class="w-full bg-[#EE4D2D] text-white py-5 rounded-2xl font-black shadow-xl shadow-brand-orange/20 uppercase tracking-widest">
+              <button @click="handleSubmitOrder" :disabled="!formOrder.qty || formOrder.qty <= 0 || formOrder.qty > remainingAllowed || loading"
+                      class="w-full bg-[#EE4D2D] text-white py-5 rounded-2xl font-black shadow-xl shadow-brand-orange/20 uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed">
                 Solicitar Agora
               </button>
            </div>
@@ -305,6 +310,10 @@ const navItems = [
 
 // Computed
 const otherLideres = computed(() => lideres.value.filter(l => l.id !== userData.value.id));
+const remainingAllowed = computed(() => {
+   if (!metaTurno.value) return 0;
+   return Math.max(0, metaTurno.value - myAssets.value.length);
+});
 
 // Methods
 const showMessage = (msg, tipo = 'sucesso') => {
@@ -344,6 +353,18 @@ const handleLogin = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const handleLogout = () => {
+   localStorage.removeItem('pda_lider_id');
+   logado.value = false;
+   userData.value = {};
+   selectedLiderId.value = '';
+   showingSettings.value = false;
+   currentTab.value = 'home';
+   myAssets.value = [];
+   pendingTransfers.value = [];
+   metaTurno.value = 0;
 };
 
 const fetchInitialData = async () => {
@@ -413,6 +434,11 @@ const fetchInitialData = async () => {
 };
 
 const handleSubmitOrder = async () => {
+  if (formOrder.value.qty > remainingAllowed.value) {
+     showMessage(`Você só pode pedir no máximo ${remainingAllowed.value} coletores para bater a meta.`, 'erro');
+     return;
+  }
+  
   loading.value = true;
   try {
     const { error } = await supabase.from('solicitacoes').insert({

@@ -279,6 +279,14 @@
                 <input v-if="item.condicao==='Quebrado'" v-model="item.observacao" placeholder="Motivo da avaria..." 
                        class="flex-[2] px-3 py-2 text-xs border border-slate-200 rounded-lg outline-none focus:border-[#ee4d2d]">
               </div>
+              <div v-if="item.requiresJustification" class="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl space-y-2">
+                 <div class="flex items-start gap-2 text-red-700 font-bold text-[10px] uppercase tracking-wider">
+                    <i class="ph-fill ph-warning text-lg"></i>
+                    <p>{{ item.divergenciaMsg }}</p>
+                 </div>
+                 <input type="text" v-model="item.justificativa" placeholder="Justificativa obrigatória..." 
+                        class="w-full px-3 py-2 text-xs border border-red-200 rounded-lg outline-none focus:border-red-500 bg-white shadow-sm">
+              </div>
             </div>
           </div>
 
@@ -671,9 +679,18 @@ const fetchInitialData = async () => {
   loading.value = true;
   try {
     // Inventory
-    const { data: est, error: estError } = await supabase.from('estoque').select('*, ativos_atuais(lideres(nome))');
+    const { data: est, error: estError } = await supabase.from('estoque').select('*, ativos_atuais(responsavel_id, lideres(nome))');
     if (estError) throw estError;
-    estoque.value = est.map(e => ({ ...e, responsavel: e.ativos_atuais?.[0]?.lideres?.nome || '-' }));
+    estoque.value = est.map(e => {
+        const aa = e.ativos_atuais;
+        // Handle 1:1 format (object) or array formats cleanly
+        const currentAtivo = Array.isArray(aa) ? aa[0] : aa;
+        return { 
+            ...e, 
+            responsavel: currentAtivo?.lideres?.nome || '-',
+            responsavel_id: currentAtivo?.responsavel_id || null
+        };
+    });
 
     // Leaders
     const { data: lid, error: lidError } = await supabase.from('lideres').select('*, areas(nome)');
@@ -828,13 +845,34 @@ const handleRecordingLoan = async () => {
 const handleBiparDev = () => {
   const sn = formDev.value.curSn.trim().toUpperCase();
   if (!sn) return;
+  if (!formDev.value.responsavelId) {
+    showMessage('Selecione quem está devolvendo primeiro!', 'erro');
+    return;
+  }
   const itemEst = estoque.value.find(e => e.sn === sn);
+  if (!itemEst) {
+    showMessage('Ativo não encontrado no sistema.', 'erro');
+    return;
+  }
+
   if (!formDev.value.list.find(i => i.sn === sn)) {
+    let requiresJustification = false;
+    let divergenciaMsg = '';
+    
+    if (itemEst.responsavel_id && itemEst.responsavel_id !== formDev.value.responsavelId) {
+      requiresJustification = true;
+      const returningLid = lideres.value.find(l => l.id === formDev.value.responsavelId)?.nome || 'Outro';
+      divergenciaMsg = `Pda sob posse de ${itemEst.responsavel}, mas ${returningLid} está devolvendo.`;
+    }
+
     formDev.value.list.push({ 
       sn, 
       condicao: 'OK', 
       observacao: '', 
-      responsavel: itemEst?.responsavel || 'Desconhecido' 
+      responsavel: itemEst.responsavel || '-', 
+      requiresJustification,
+      divergenciaMsg,
+      justificativa: ''
     });
   }
   formDev.value.curSn = '';
@@ -845,21 +883,30 @@ const handleRecordingReturn = async () => {
     showMessage('Selecione quem está devolvendo os aparelhos!', 'erro');
     return;
   }
+  
+  const justMissing = formDev.value.list.find(i => i.requiresJustification && !i.justificativa.trim());
+  if (justMissing) {
+    showMessage('Preencha as justificativas obrigatórias geradas pelas divergências.', 'erro');
+    return;
+  }
+
   loading.value = true;
   try {
     const sns = formDev.value.list.map(i => i.sn);
     await supabase.from('ativos_atuais').delete().in('sn', sns);
     for (const item of formDev.value.list) {
+      const finalObs = [item.observacao, item.justificativa ? `Divergência de dono: ${item.justificativa}` : ''].filter(Boolean).join(' | ');
+      
       await supabase.from('estoque').update({ 
         status: item.condicao === 'Quebrado' ? 'Quebrado' : 'Disponível',
-        observacao: item.observacao
+        observacao: finalObs
       }).eq('sn', item.sn);
       
       await supabase.from('movimentacoes').insert({ 
         sn: item.sn, 
         tipo: 'Retorno', 
         condicao: item.condicao, 
-        observacao: item.observacao, 
+        observacao: finalObs, 
         responsavel_id: formDev.value.responsavelId,
         admin_id: 'Admin Web' 
       });

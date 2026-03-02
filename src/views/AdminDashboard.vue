@@ -23,9 +23,9 @@
         <button v-for="tab in tabs" :key="tab.id" @click="currentTab = tab.id" :class="navClass(tab.id)">
           <i :class="['ph text-xl', tab.icon]"></i> 
           <span>{{ tab.label }}</span>
-          <span v-if="(tab.id === 'solicitacoes' && badgeCounts.sol > 0) || (tab.id === 'solicitacoes' && badgeCounts.trc > 0)" 
+          <span v-if="tab.id === 'solicitacoes' && badgeCounts.sol > 0" 
                 class="ml-auto bg-[#ee4d2d] text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-black shadow-sm">
-            {{ badgeCounts.sol + badgeCounts.trc }}
+            {{ badgeCounts.sol }}
           </span>
         </button>
       </nav>
@@ -672,13 +672,6 @@ const fetchInitialData = async () => {
     const { data: sol, error: solError } = await supabase.from('solicitacoes').select('*, lideres(nome)').order('data', { ascending: false });
     if (solError) throw solError;
     solicitacoes.value = sol;
-
-    // Transfers
-    const { data: trc, error: trcError } = await supabase.from('trocas')
-        .select('*, lideres_origem:lider_origem(nome), lideres_destino:lider_destino(nome)')
-        .order('data', { ascending: false });
-    if (trcError) throw trcError;
-    trocas.value = trc;
 
     // Areas
     const { data: areasData, error: areasError } = await supabase.from('areas').select('*').order('nome');

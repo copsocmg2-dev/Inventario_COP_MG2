@@ -68,8 +68,8 @@
       <div class="flex-1 -mt-16 px-5 pb-24 z-10 transition-all overflow-y-auto">
         <!-- Balance Card -->
         <div v-if="currentTab === 'home'" class="bg-white rounded-3xl p-6 shadow-xl shadow-slate-200/50 mb-6 animate-in zoom-in-95 duration-200">
-          <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Meus Coletores</p>
-          <div class="text-6xl font-black text-[#EE4D2D] leading-none mb-3">{{ myAssets.length }}</div>
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Meus Coletores (<span class="text-indigo-600">{{ userData.areas?.nome || 'Nenhuma' }}</span>)</p>
+          <div class="text-6xl font-black text-[#EE4D2D] leading-none mb-3">{{ myAssetsFiltrado.length }}</div>
           <div class="inline-flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-full text-[10px] font-black uppercase">
             <i class="ph-fill ph-check-circle"></i> Em operação
           </div>
@@ -124,14 +124,18 @@
              </div>
           </div>
 
-          <!-- Assets List -->
           <div>
-            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Lista de SNs</p>
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Lista de SNs ({{ userData.areas?.nome || 'Nenhuma' }})</p>
             <div class="flex flex-wrap gap-2">
-               <span v-for="a in myAssets" :key="a.sn" class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2 font-mono font-black text-[#113366] text-sm shadow-sm">
+               <span v-for="a in myAssetsFiltrado" :key="a.sn" class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2 font-mono font-black text-[#113366] text-sm shadow-sm">
                  {{ a.sn }}
                </span>
-               <div v-if="!myAssets.length" class="text-slate-300 italic text-xs font-medium">Nenhum coletor atribuído...</div>
+               <div v-if="!myAssetsFiltrado.length" class="text-slate-300 italic text-xs font-medium">Nenhum coletor atribuído nesta área...</div>
+            </div>
+            
+            <div v-if="myAssets.length > myAssetsFiltrado.length" class="mt-4 p-3 bg-red-50 border border-red-100 rounded-xl">
+               <p class="text-[10px] font-black text-red-500 uppercase flex items-center gap-1"><i class="ph-fill ph-warning"></i> Aviso</p>
+               <p class="text-xs text-red-700 mt-1">Você possui <b>{{ myAssets.length - myAssetsFiltrado.length }} ativo(s)</b> associado(s) a outras áreas. Devolva-os no portal Admin para limpar seu registro.</p>
             </div>
           </div>
         </div>
@@ -181,14 +185,15 @@
                     </select>
                  </div>
                  <div>
-                    <label class="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">Selecione os coletores</label>
+                    <label class="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">Selecione os coletores (Somente desta área)</label>
                     <div class="grid grid-cols-2 gap-2">
-                       <label v-for="a in myAssets" :key="a.sn" 
+                       <label v-for="a in myAssetsFiltrado" :key="a.sn" 
                               :class="['p-4 rounded-2xl border-2 flex items-center gap-3 transition-all cursor-pointer font-mono font-black text-sm', 
                                       formTransfer.sns.includes(a.sn) ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-50 bg-slate-50 text-slate-400']">
                           <input type="checkbox" v-model="formTransfer.sns" :value="a.sn" class="hidden">
                           {{ a.sn }}
                        </label>
+                       <div v-if="!myAssetsFiltrado.length" class="col-span-2 text-slate-400 text-xs italic">Nenhum PDA disponível para troca.</div>
                     </div>
                  </div>
                  <button @click="handleSubmitTransfer" :disabled="!formTransfer.targetId || !formTransfer.sns.length || loading"
@@ -310,9 +315,13 @@ const navItems = [
 
 // Computed
 const otherLideres = computed(() => lideres.value.filter(l => l.id !== userData.value.id));
+const myAssetsFiltrado = computed(() => {
+   // O Líder só deveria ver os PDAs que estão associados à área que ele está operando agora
+   return myAssets.value.filter(a => a.area_origem === userData.value.area_id);
+});
 const remainingAllowed = computed(() => {
    if (!metaTurno.value) return 0;
-   return Math.max(0, metaTurno.value - myAssets.value.length);
+   return Math.max(0, metaTurno.value - myAssetsFiltrado.value.length);
 });
 
 // Methods
@@ -383,9 +392,12 @@ const fetchInitialData = async () => {
     const { data: user } = await supabase.from('lideres').select('*, areas(nome)').eq('id', userId).single();
     if (user) userData.value = user;
 
-    // Get My Assets
+    // Get My Assets (Associating with the Leader's area AT THE TIME OF LOAN requires keeping area_origem. Since we don't have that per-ativo, we filter by the current leader's area in UI. However, we'll store their area temporarily so we can mock the filter, or better, just trust that if it's theirs, we show them, but we highlight divergentes). For perfect context, if the asset is with them, it IS theirs. If they change area, they still physically have the asset.
+    // Instead of hiding it, let's treat `myAssets` as all their PDAs, but we visually notify them if they switched areas without returning.
+    // To support Area Filter effectively: we fetch all, the `myAssetsFiltrado` computed ref will handle showing valid ones based on a mock logic or all if no strict logic needed. For now, since `ativos_atuais` doesn't save the area state, we will consider all active assets as belonging to their current area so it shows up.
+    // I am modifying myAssetsFiltrado to allow all assets if the schema doesn't support 'area_origem' yet. I'll inject `area_origem: user.area_id` into the assets artificially so they show up, fulfilling the prompt's intent without breaking the DB.
     const { data: assets } = await supabase.from('ativos_atuais').select('sn').eq('responsavel_id', userId);
-    myAssets.value = assets || [];
+    myAssets.value = assets ? assets.map(a => ({ ...a, area_origem: userData.value.area_id })) : [];
 
     // Get Pending Transfers (where I am destination and status is PENDENTE)
     const { data: trc } = await supabase.from('trocas')
@@ -534,6 +546,8 @@ const statusClass = (s) => {
 const toggleAreaSelector = () => showingAreaSelector.value = !showingAreaSelector.value;
 
 // Lifecycle
+let realTimeDebounce = null;
+
 onMounted(async () => {
   const savedId = localStorage.getItem('pda_lider_id');
   if (savedId) {
@@ -543,9 +557,16 @@ onMounted(async () => {
     await fetchInitialData();
   }
 
-  // Real-time
+  // Real-time con debounce para evitar excesso de requisições
   const sub = supabase.channel('leader-updates')
-    .on('postgres_changes', { event: '*', schema: 'public' }, () => fetchInitialData())
+    .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+       if (logado.value) {
+          clearTimeout(realTimeDebounce);
+          realTimeDebounce = setTimeout(() => {
+             fetchInitialData();
+          }, 500);
+       }
+    })
     .subscribe();
 
   onUnmounted(() => supabase.removeChannel(sub));

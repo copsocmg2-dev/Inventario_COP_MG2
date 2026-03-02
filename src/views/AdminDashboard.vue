@@ -29,6 +29,12 @@
           </span>
         </button>
       </nav>
+      <div class="px-4 pb-4">
+        <button @click="currentTab = 'config'" :class="navClass('config')">
+          <i class="ph ph-gear text-xl"></i>
+          <span>Configurações</span>
+        </button>
+      </div>
       <div class="p-4 border-t border-white/5 text-center text-[10px] text-white/30 italic">v3.0 Supabase Real-time</div>
     </aside>
 
@@ -366,6 +372,129 @@
          </div>
       </div>
 
+      <!-- CONFIGURAÇÕES TAB -->
+      <div v-if="currentTab === 'config'" class="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-300">
+         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+           <h2 class="text-3xl font-black text-[#113366] flex items-center gap-2">
+             <i class="ph-fill ph-gear text-[#ee4d2d]"></i> Gestão do Sistema
+           </h2>
+           <div class="flex gap-4 mt-6">
+              <button v-for="st in ['areas', 'lideres', 'estoque']" :key="st" 
+                      @click="configSubTab = st"
+                      :class="['px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all', 
+                              configSubTab === st ? 'bg-[#113366] text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100']">
+                 {{ st === 'areas' ? 'Áreas' : st === 'lideres' ? 'Líderes' : 'PDAs (Estoque)' }}
+              </button>
+           </div>
+         </div>
+
+         <!-- ÁREAS CONFIG -->
+         <div v-if="configSubTab === 'areas'" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
+               <h4 class="font-black text-[#113366] mb-4 uppercase text-xs tracking-widest">Nova Área</h4>
+               <input type="text" v-model="formNewArea.nome" placeholder="Nome da área..." 
+                      class="w-full px-4 py-3 border-2 border-slate-100 rounded-xl mb-4 focus:border-[#ee4d2d] outline-none font-bold text-sm">
+               <button @click="handleAddArea" :disabled="!formNewArea.nome || loading"
+                       class="w-full bg-[#113366] text-white py-3 rounded-xl font-black text-xs hover:bg-[#0c2447] disabled:opacity-30">
+                  CADASTRAR ÁREA
+               </button>
+            </div>
+            <div class="md:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+               <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-50 border-b border-slate-100">
+                     <tr><th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Nome da Área</th><th class="px-6 py-4 text-right">Ação</th></tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-50">
+                     <tr v-for="a in areas" :key="a.id" class="hover:bg-slate-50/50">
+                        <td class="px-6 py-4 font-bold text-[#113366] uppercase">{{ a.nome }}</td>
+                        <td class="px-6 py-4 text-right">
+                           <button @click="handleDeleteArea(a.id)" class="text-slate-300 hover:text-red-500 transition-colors"><i class="ph-bold ph-trash"></i></button>
+                        </td>
+                     </tr>
+                  </tbody>
+               </table>
+            </div>
+         </div>
+
+         <!-- LÍDERES CONFIG -->
+         <div v-if="configSubTab === 'lideres'" class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="md:col-span-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit space-y-4">
+               <h4 class="font-black text-[#113366] mb-4 uppercase text-xs tracking-widest">Novo Líder</h4>
+               <div>
+                  <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Nome Completo</label>
+                  <input type="text" v-model="formNewLider.nome" class="w-full px-4 py-2 border-2 border-slate-100 rounded-lg focus:border-[#ee4d2d] outline-none font-bold text-sm">
+               </div>
+               <div>
+                  <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Área Fixa</label>
+                  <select v-model="formNewLider.area_id" class="w-full px-4 py-2 border-2 border-slate-100 rounded-lg focus:border-[#ee4d2d] outline-none font-bold text-sm">
+                     <option v-for="a in areas" :key="a.id" :value="a.id">{{ a.nome }}</option>
+                  </select>
+               </div>
+               <button @click="handleAddLider" :disabled="!formNewLider.nome || !formNewLider.area_id || loading"
+                       class="w-full bg-[#113366] text-white py-3 rounded-xl font-black text-xs hover:bg-[#0c2447] disabled:opacity-30">
+                  CADASTRAR LÍDER
+               </button>
+            </div>
+            <div class="md:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+               <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-50 border-b border-slate-100">
+                     <tr><th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Líder</th><th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Área Vinculada</th><th class="px-6 py-4 text-right">Ação</th></tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-50">
+                     <tr v-for="l in lideres" :key="l.id" class="hover:bg-slate-50/50">
+                        <td class="px-6 py-4 font-bold text-[#113366]">{{ l.nome }}</td>
+                        <td class="px-6 py-4 uppercase font-bold text-slate-400">{{ l.areas?.nome || 'Sem Área' }}</td>
+                        <td class="px-6 py-4 text-right">
+                           <button @click="handleDeleteLider(l.id)" class="text-slate-300 hover:text-red-500 transition-colors"><i class="ph-bold ph-trash"></i></button>
+                        </td>
+                     </tr>
+                  </tbody>
+               </table>
+            </div>
+         </div>
+
+         <!-- ESTOQUE CONFIG -->
+         <div v-if="configSubTab === 'estoque'" class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="md:col-span-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit space-y-4">
+               <h4 class="font-black text-[#113366] mb-4 uppercase text-xs tracking-widest">Novo Ativo</h4>
+               <div>
+                  <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Serial Number (SN)</label>
+                  <input type="text" v-model="formNewAsset.sn" class="w-full px-4 py-2 border-2 border-slate-100 rounded-lg focus:border-[#ee4d2d] outline-none font-black font-mono text-sm uppercase">
+               </div>
+               <div>
+                  <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Modelo</label>
+                  <input type="text" v-model="formNewAsset.modelo" placeholder="Ex: Zebra TC21" class="w-full px-4 py-2 border-2 border-slate-100 rounded-lg focus:border-[#ee4d2d] outline-none font-bold text-sm">
+               </div>
+               <button @click="handleAddAsset" :disabled="!formNewAsset.sn || loading"
+                       class="w-full bg-[#ee4d2d] text-white py-3 rounded-xl font-black text-xs hover:bg-[#d64428] disabled:opacity-30 shadow-lg shadow-brand-orange/20">
+                  ADICIONAR PDA
+               </button>
+            </div>
+            <div class="md:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+               <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-50 border-b border-slate-100">
+                     <tr><th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">SN</th><th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Modelo</th><th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Status</th><th class="px-6 py-4 text-right">Ação</th></tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-50">
+                     <tr v-for="item in estoque" :key="item.sn" class="hover:bg-slate-50/50 font-mono">
+                        <td class="px-6 py-4 font-black text-[#113366] italic">{{ item.sn }}</td>
+                        <td class="px-6 py-4 font-sans font-bold text-slate-500">{{ item.modelo }}</td>
+                        <td class="px-6 py-4 font-sans">
+                           <span :class="['text-[9px] font-black px-2 py-0.5 rounded-full border', 
+                                         item.status==='Disponível'?'bg-green-50 text-green-600':item.status==='Emprestado'?'bg-orange-50 text-orange-600':'bg-red-50 text-red-600']">
+                             {{ item.status }}
+                           </span>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                           <button @click="handleDeleteAsset(item.sn)" class="text-slate-300 hover:text-red-500 transition-colors"><i class="ph-bold ph-trash"></i></button>
+                        </td>
+                     </tr>
+                  </tbody>
+               </table>
+            </div>
+         </div>
+      </div>
+
       <!-- DELIVERY MODAL -->
       <div v-if="modal.ativo" class="fixed inset-0 bg-[#113366]/90 backdrop-blur-md z-[210] flex items-center justify-center p-4">
         <div class="bg-white rounded-[40px] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
@@ -428,12 +557,16 @@ const planejamento = ref([]);
 const areas = ref([]);
 const filtro = ref({ busca: '', status: '' });
 const filtroOnPage = ref({ data_op: '', turno: '' });
+const configSubTab = ref('areas');
 
 // Forms
 const formEmp = ref({ responsavelId: '', curSn: '', sns: [] });
 const formDev = ref({ curSn: '', list: [] });
 const modal = ref({ ativo: false, sol: null, sns: [], currentSn: '' });
-const formPlan = ref({ data_op: '', turno: 'T1', areas: {} });
+const formPlan = ref({ data: '', turno: 'T1', areas: {} }); // Changed data_op to data since I replaced it
+const formNewArea = ref({ nome: '' });
+const formNewLider = ref({ nome: '', area_id: '' });
+const formNewAsset = ref({ sn: '', modelo: '' });
 
 const tabs = [
   { id: 'dash', label: 'Dashboard', icon: 'ph-squares-four' },
@@ -727,6 +860,84 @@ const handleSavePlanning = async () => {
     } finally {
         loading.value = false;
     }
+};
+
+const handleAddArea = async () => {
+  loading.value = true;
+  try {
+    const { error } = await supabase.from('areas').insert({ nome: formNewArea.value.nome });
+    if (error) throw error;
+    showMessage('Área cadastrada!');
+    formNewArea.value.nome = '';
+    await fetchInitialData();
+  } catch (e) { showMessage(e.message, 'erro'); }
+  finally { loading.value = false; }
+};
+
+const handleDeleteArea = async (id) => {
+  if (!confirm('Excluir esta área?')) return;
+  loading.value = true;
+  try {
+    const { error } = await supabase.from('areas').delete().eq('id', id);
+    if (error) throw error;
+    showMessage('Área excluída.');
+    await fetchInitialData();
+  } catch (e) { showMessage(e.message, 'erro'); }
+  finally { loading.value = false; }
+};
+
+const handleAddLider = async () => {
+    loading.value = true;
+    try {
+        const { error } = await supabase.from('lideres').insert({ 
+            nome: formNewLider.value.nome, 
+            area_id: formNewLider.value.area_id 
+        });
+        if (error) throw error;
+        showMessage('Líder cadastrado!');
+        formNewLider.value = { nome: '', area_id: '' };
+        await fetchInitialData();
+    } catch (e) { showMessage(e.message, 'erro'); }
+    finally { loading.value = false; }
+};
+
+const handleDeleteLider = async (id) => {
+    if (!confirm('Excluir este líder?')) return;
+    loading.value = true;
+    try {
+        const { error } = await supabase.from('lideres').delete().eq('id', id);
+        if (error) throw error;
+        showMessage('Líder excluído.');
+        await fetchInitialData();
+    } catch (e) { showMessage(e.message, 'erro'); }
+    finally { loading.value = false; }
+};
+
+const handleAddAsset = async () => {
+    loading.value = true;
+    try {
+        const { error } = await supabase.from('estoque').insert({ 
+            sn: formNewAsset.value.sn.toUpperCase().trim(), 
+            modelo: formNewAsset.value.modelo || 'Zebra TC21' 
+        });
+        if (error) throw error;
+        showMessage('Ativo adicionado ao estoque!');
+        formNewAsset.value = { sn: '', modelo: '' };
+        await fetchInitialData();
+    } catch (e) { showMessage(e.message, 'erro'); }
+    finally { loading.value = false; }
+};
+
+const handleDeleteAsset = async (sn) => {
+    if (!confirm('Excluir este ativo definitivamente?')) return;
+    loading.value = true;
+    try {
+        const { error } = await supabase.from('estoque').delete().eq('sn', sn);
+        if (error) throw error;
+        showMessage('Ativo removido.');
+        await fetchInitialData();
+    } catch (e) { showMessage(e.message, 'erro'); }
+    finally { loading.value = false; }
 };
 
 // Subscriptions

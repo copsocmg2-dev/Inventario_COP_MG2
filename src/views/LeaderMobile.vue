@@ -1,6 +1,16 @@
 <template>
   <div class="app-shell max-w-[450px] mx-auto min-h-screen flex flex-col bg-[#F2F4F7] font-sans">
     
+    <!-- Toasts -->
+    <div class="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] flex flex-col gap-2 w-[90%] pointer-events-none">
+      <div v-for="toast in toasts" :key="toast.id" 
+           :class="['p-4 rounded-2xl shadow-2xl flex items-center gap-3 bg-white border-l-4 animate-in slide-in-from-top-4 duration-300', 
+                   toast.tipo === 'sucesso' ? 'border-green-500' : 'border-red-500']">
+        <i :class="['ph-bold text-xl', toast.tipo === 'sucesso' ? 'ph-check-circle text-green-500' : 'ph-warning-circle text-red-500']"></i>
+        <span class="text-xs font-black text-[#113366]">{{ toast.mensagem }}</span>
+      </div>
+    </div>
+
     <!-- Loader -->
     <div v-if="loading" class="fixed inset-0 bg-white/80 z-[9999] flex flex-col items-center justify-center backdrop-blur-sm">
       <div class="w-10 h-10 border-4 border-slate-200 border-t-[#EE4D2D] rounded-full animate-spin"></div>
@@ -183,17 +193,24 @@
 
       <!-- Area Selector Modal -->
       <div v-if="showingAreaSelector" class="fixed inset-0 bg-[#113366]/80 backdrop-blur-md z-[1000] flex items-end animate-in fade-in duration-300">
-         <div class="w-full bg-white rounded-t-[40px] p-8 pb-12 animate-in slide-in-from-bottom duration-300">
-            <h5 class="text-xl font-black text-[#113366] mb-6">Em qual área você está?</h5>
-            <div class="grid grid-cols-2 gap-3 mb-8">
+         <div class="w-full bg-white rounded-t-[40px] p-8 pb-12 animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+               <h5 class="text-xl font-black text-[#113366]">Confirme sua Área</h5>
+               <button @click="showingAreaSelector = false" class="text-slate-300 hover:text-[#EE4D2D] transition-colors"><i class="ph-bold ph-x text-2xl"></i></button>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-8">
                <div v-for="area in areas" :key="area.id" 
                     @click="handleChangeArea(area.id, area.nome)"
-                    class="p-4 rounded-2xl border-2 font-black text-center text-sm transition-all"
-                    :class="userData.area_id === area.id ? 'border-[#EE4D2D] bg-red-50 text-[#EE4D2D]' : 'border-slate-50 bg-slate-50 text-slate-400'">
-                 {{ area.nome }}
+                    class="p-6 rounded-[32px] border-2 flex flex-col items-center gap-3 transition-all relative overflow-hidden"
+                    :class="userData.area_id === area.id ? 'border-[#EE4D2D] bg-red-50/50 text-[#EE4D2D] shadow-lg shadow-brand-orange/10 scale-[1.02]' : 'border-slate-50 bg-slate-50 text-slate-400 hover:bg-slate-100 hover:border-slate-200 active:scale-95'">
+                 <div v-if="userData.area_id === area.id" class="absolute top-3 right-3"><i class="ph-fill ph-check-circle text-lg"></i></div>
+                 <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-3xl"
+                      :class="userData.area_id === area.id ? 'bg-[#EE4D2D] text-white' : 'bg-slate-200 text-slate-400'">
+                    <i :class="['ph-bold', getAreaIcon(area.nome)]"></i>
+                 </div>
+                 <span class="font-black text-xs uppercase tracking-tight text-center">{{ area.nome }}</span>
                </div>
             </div>
-            <button @click="showingAreaSelector = false" class="w-full py-2 text-slate-400 font-black text-xs uppercase tracking-widest">Fechar</button>
          </div>
       </div>
 
@@ -219,6 +236,7 @@ const pendingTransfers = ref([]);
 const requestHistory = ref([]);
 const operationalInfo = ref({});
 const showingAreaSelector = ref(false);
+const toasts = ref([]);
 
 // Forms
 const formOrder = ref({ qty: 1, obs: '' });
@@ -235,6 +253,23 @@ const navItems = [
 const otherLideres = computed(() => lideres.value.filter(l => l.id !== userData.value.id));
 
 // Methods
+const showMessage = (msg, tipo = 'sucesso') => {
+  const id = Date.now();
+  toasts.value.push({ id, mensagem: msg, tipo });
+  setTimeout(() => toasts.value = toasts.value.filter(t => t.id !== id), 4000);
+};
+
+const getAreaIcon = (nome) => {
+  const n = nome.toLowerCase();
+  if (n.includes('recebimento')) return 'ph-package';
+  if (n.includes('expedição') || n.includes('envio')) return 'ph-truck';
+  if (n.includes('esteira') || n.includes('sorter')) return 'ph-arrows-clockwise';
+  if (n.includes('inventário') || n.includes('estoque')) return 'ph-barcode';
+  if (n.includes('retorno')) return 'ph-arrow-u-up-left';
+  if (n.includes('qualidade')) return 'ph-seal-check';
+  return 'ph-map-pin';
+};
+
 const handleLogin = async () => {
   loading.value = true;
   try {
@@ -323,8 +358,9 @@ const handleSubmitOrder = async () => {
     formOrder.value = { qty: 1, obs: '' };
     currentTab.value = 'home';
     await fetchInitialData();
+    showMessage('Solicitação enviada com sucesso!');
   } catch (e) {
-    alert(e.message);
+    showMessage(e.message, 'erro');
   } finally {
     loading.value = false;
   }
@@ -346,9 +382,9 @@ const handleSubmitTransfer = async () => {
     formTransfer.value = { targetId: '', sns: [] };
     currentTab.value = 'home';
     await fetchInitialData();
-    alert('Proposta de troca enviada!');
+    showMessage('Proposta de troca enviada!');
   } catch (e) {
-    alert(e.message);
+    showMessage(e.message, 'erro');
   } finally {
     loading.value = false;
   }
@@ -362,15 +398,17 @@ const handleResponseTransfer = async (id, accepted) => {
         status_destino: 'RECUSADO', 
         status_geral: 'CANCELADO' 
       }).eq('id', id);
+      showMessage('Troca recusada.');
     } else {
       await supabase.from('trocas').update({ 
         status_destino: 'ACEITO', 
         status_geral: 'PENDENTE_ADMIN' 
       }).eq('id', id);
+      showMessage('Troca aceita! Aguardando Admin.');
     }
     await fetchInitialData();
   } catch (e) {
-    alert(e.message);
+    showMessage(e.message, 'erro');
   } finally {
     loading.value = false;
   }
@@ -385,8 +423,9 @@ const handleChangeArea = async (areaId, areaNome) => {
     userData.value.area_id = areaId;
     userData.value.areas = { nome: areaNome };
     showingAreaSelector.value = false;
+    showMessage('Área alterada com sucesso!');
   } catch (e) {
-    alert(e.message);
+    showMessage(e.message, 'erro');
   } finally {
     loading.value = false;
   }

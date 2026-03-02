@@ -746,37 +746,6 @@ const handleActionSol = async (id, status) => {
   loading.value = false;
 };
 
-const handleResponseTroca = async (id, approved) => {
-    loading.value = true;
-    try {
-        if (!approved) {
-            await supabase.from('trocas').update({ status_geral: 'REJEITADO_ADMIN' }).eq('id', id);
-            showMessage('Troca recusada pelo administrador.');
-        } else {
-            // EFETIVAR TROCA NO BANCO
-            const trc = trocas.value.find(t => t.id === id);
-            const sns = trc.sns;
-            const destId = trc.lider_destino;
-
-            // 1. Update Ativos_Atuais
-            const inserts = sns.map(sn => ({ sn, responsavel_id: destId }));
-            await supabase.from('ativos_atuais').upsert(inserts);
-
-            // 2. Log Movimentações
-            const logs = sns.map(sn => ({ sn, responsavel_id: destId, tipo: 'Transferência', admin_id: 'Auto Admin' }));
-            await supabase.from('movimentacoes').insert(logs);
-
-            // 3. Update Proposta
-            await supabase.from('trocas').update({ status_geral: 'CONCLUIDO' }).eq('id', id);
-            
-            showMessage(`Troca de ${sns.length} PDAs efetivada com sucesso!`);
-        }
-    } catch (e) {
-        showMessage(e.message, 'erro');
-    } finally {
-        loading.value = false;
-    }
-};
 
 const openDeliveryModal = (sol) => {
   modal.value = { ativo: true, sol, sns: [], currentSn: '' };

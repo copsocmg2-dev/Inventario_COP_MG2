@@ -608,6 +608,11 @@ const onPageList = computed(() => {
 });
 
 // Methods
+const updateLiderMax = () => {
+   // Reset quantidade ao trocar o líder para evitar que passe o limite antigo
+   formOp.value.quantidade = 1;
+};
+
 const showMessage = (msg, tipo = 'sucesso') => {
   const id = Date.now();
   toasts.value.push({ id, mensagem: msg, tipo });
@@ -651,8 +656,13 @@ const handleRecordingOp = async () => {
     const currentQty = lideres.value.find(l => l.id === lider_id)?.lider_inventory?.[0]?.quantidade || 0;
     const newQty = opType.value === 'saida' ? currentQty + quantidade : currentQty - quantidade;
     
-    const { error: invError } = await supabase.from('lider_inventory').upsert({ lider_id, quantidade: newQty, last_updated: new Date() }, { onConflict: 'lider_id' });
-    if (invError) throw invError;
+    const payload = { lider_id, quantidade: newQty, last_updated: new Date().toISOString() };
+    console.log('Upserting inventory:', payload);
+    const { error: invError } = await supabase.from('lider_inventory').upsert(payload, { onConflict: 'lider_id' });
+    if (invError) {
+      console.error('Inventory Error:', invError);
+      throw invError;
+    }
 
     // 2. Record Movement
     const { error: movError } = await supabase.from('movimentacoes').insert({
@@ -739,8 +749,12 @@ const handleSavePlanning = async () => {
             area_id: areaId,
             quantidade: qty
         }));
+        console.log('Upserting planning:', payload);
         const { error } = await supabase.from('planejamento').upsert(payload, { onConflict: 'data,turno,area_id' });
-        if (error) throw error;
+        if (error) {
+           console.error('Planning Error:', error);
+           throw error;
+        }
         showMessage('Planejamento salvo!');
         await fetchInitialData();
     } catch (e) { showMessage(e.message, 'erro'); }

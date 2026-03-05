@@ -136,7 +136,7 @@
                  <select v-model="formOp.lider_id" @change="updateLiderMax" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#113366] outline-none font-bold text-[#113366] bg-slate-50">
                     <option value="" disabled>Selecione o Líder...</option>
                     <option v-for="l in lideres" :key="l.id" :value="l.id">
-                      {{ l.nome }} ({{ l.areas?.nome }}) - Atual: {{ Array.isArray(l.lider_inventory) ? (l.lider_inventory[0]?.quantidade || 0) : (l.lider_inventory?.quantidade || 0) }}
+                      {{ l.nome }} ({{ l.areas?.nome }}) - Atual: {{ getLiderQty(l.lider_inventory) }}
                     </option>
                  </select>
               </div>
@@ -497,8 +497,15 @@ watch(adminUser, (val) => localStorage.setItem('admin_id', val));
 const currentTab = ref(localStorage.getItem('admin_tab_v4') || 'dash');
 watch(currentTab, (val) => localStorage.setItem('admin_tab_v4', val));
 
-const loading = ref(true);
 const toasts = ref([]);
+const loading = ref(false);
+
+// Helpers
+const getLiderQty = (inv) => {
+  if (!inv) return 0;
+  if (Array.isArray(inv)) return inv[0]?.quantidade || 0;
+  return inv.quantidade || 0;
+};
 const areas = ref([]);
 const lideres = ref([]);
 const pendingTransfers = ref([]);
@@ -537,7 +544,7 @@ const inventoryByArea = computed(() => {
     // In Use: soma das quantidades de PDAs com líderes desta área
     const inUse = lideres.value
       .filter(l => l.area_id === area.id)
-      .reduce((sum, l) => sum + (l.lider_inventory?.[0]?.quantidade || 0), 0);
+      .reduce((sum, l) => sum + getLiderQty(l.lider_inventory), 0);
     
     return {
       ...area,
@@ -549,7 +556,7 @@ const inventoryByArea = computed(() => {
 
 const kpis = computed(() => {
   const totalPool = areas.value.reduce((sum, a) => sum + a.quantidade_total, 0);
-  const totalInUse = lideres.value.reduce((sum, l) => sum + (l.lider_inventory?.[0]?.quantidade || 0), 0);
+  const totalInUse = lideres.value.reduce((sum, l) => sum + getLiderQty(l.lider_inventory), 0);
   return {
     total: totalPool,
     disponiveis: totalPool - totalInUse,
@@ -568,12 +575,12 @@ const kpiCards = computed(() => [
 const leadersWithStock = computed(() => {
   return lideres.value
     .filter(l => l.nome.toLowerCase().includes(filtroLider.value.toLowerCase()))
-    .sort((a, b) => (b.lider_inventory?.[0]?.quantidade || 0) - (a.lider_inventory?.[0]?.quantidade || 0));
+    .sort((a, b) => getLiderQty(b.lider_inventory) - getLiderQty(a.lider_inventory));
 });
 
 const currentLiderQty = computed(() => {
    const l = lideres.value.find(lid => lid.id === formOp.value.lider_id);
-   return l?.lider_inventory?.[0]?.quantidade || 0;
+   return getLiderQty(l?.lider_inventory);
 });
 
 const areaAvailableQty = computed(() => {
@@ -594,7 +601,7 @@ const isOpValid = computed(() => {
 
 const otherLideresForTransfer = computed(() => lideres.value.filter(l => l.id !== formTransfer.value.origem_id));
 const isTransferValid = computed(() => {
-   const sourceQty = lideres.value.find(l => l.id === formTransfer.value.origem_id)?.lider_inventory?.[0]?.quantidade || 0;
+   const sourceQty = getLiderQty(lideres.value.find(l => l.id === formTransfer.value.origem_id)?.lider_inventory);
    return formTransfer.value.origem_id && 
           formTransfer.value.destino_id && 
           formTransfer.value.quantidade > 0 && 
@@ -663,15 +670,8 @@ const handleRecordingOp = async () => {
     const typeLabel = opType.value === 'saida' ? 'Saída' : 'Retorno';
     
     // 1. Update Leader Inventory
-    // Help helper function to get quantity from possible array or object
-    const getQty = (inv) => {
-      if (!inv) return 0;
-      if (Array.isArray(inv)) return inv[0]?.quantidade || 0;
-      return inv.quantidade || 0;
-    };
-
     const leader = lideres.value.find(l => l.id === lider_id);
-    const currentQty = getQty(leader?.lider_inventory);
+    const currentQty = getLiderQty(leader?.lider_inventory);
     const newQty = opType.value === 'saida' ? currentQty + (quantidade || 0) : currentQty - (quantidade || 0);
     
     const payload = { lider_id, quantidade: newQty, last_updated: new Date().toISOString() };

@@ -199,7 +199,10 @@
                  {{ l.nome.charAt(0) }}
               </div>
               <h4 class="font-black text-[#113366] text-lg leading-tight mb-1">{{ l.nome }}</h4>
-              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">{{ l.areas?.nome }}</p>
+              <div class="flex items-center gap-2 mb-4">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ l.areas?.nome }}</span>
+                <span v-if="l.turno" class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-black">{{ l.turno }}</span>
+              </div>
               
               <div class="bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl w-full flex flex-col items-center">
                  <span class="text-[10px] font-black uppercase">Em Posse</span>
@@ -254,6 +257,24 @@
 
          <div v-else class="text-center py-16 bg-slate-50 border-2 border-dashed border-slate-100 rounded-[40px] text-slate-300 font-black italic">
             Nenhuma transferência pendente de autorização.
+         </div>
+
+         <!-- PASSAGEM DE TURNO SECTION -->
+         <div class="mt-12 bg-gradient-to-br from-[#113366] to-[#0c2447] p-8 rounded-[32px] shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-8 opacity-10">
+               <i class="ph ph-arrows-clockwi text-9xl text-white"></i>
+            </div>
+            <div class="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+               <div class="text-center md:text-left">
+                  <h3 class="text-2xl font-black text-white flex items-center gap-3">
+                     <i class="ph ph-clock-afternoon text-[#ee4d2d]"></i> Passagem de Turno
+                  </h3>
+                  <p class="text-blue-200 text-sm font-medium mt-1">Transfira PDAs de um líder do turno anterior para o próximo turno com ajuste automático de estoque.</p>
+               </div>
+               <button @click="openHandoverModal" class="bg-[#ee4d2d] text-white px-8 py-4 rounded-2xl font-black shadow-xl shadow-[#ee4d2d]/30 hover:scale-105 active:scale-95 transition-all uppercase tracking-widest text-sm">
+                  Iniciar Passagem de Turno
+               </button>
+            </div>
          </div>
       </div>
 
@@ -416,9 +437,17 @@
                      <option v-for="a in areas" :key="a.id" :value="a.id">{{ a.nome }}</option>
                   </select>
                </div>
+               <div>
+                  <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Turno</label>
+                  <select v-model="formNewLider.turno" class="w-full px-4 py-2 border-2 border-slate-100 rounded-lg focus:border-[#ee4d2d] outline-none font-bold text-sm">
+                     <option value="T1">T1</option>
+                     <option value="T2">T2</option>
+                     <option value="T3">T3</option>
+                  </select>
+               </div>
                <button @click="handleAddLider" :disabled="!formNewLider.nome || !formNewLider.area_id || loading"
                        class="w-full bg-[#113366] text-white py-3 rounded-xl font-black text-xs hover:bg-[#0c2447] disabled:opacity-30">
-                  CADASTRAR LÍDER
+                  SALVAR / CADASTRAR LÍDER
                </button>
             </div>
             <div class="md:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -426,7 +455,8 @@
                   <thead class="bg-slate-50 border-b border-slate-100">
                      <tr>
                         <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Líder</th>
-                        <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest text-center">Área Vinculada</th>
+                        <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest text-center">Área</th>
+                        <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest text-center">Turno</th>
                         <th class="px-6 py-4 text-right">Ação</th>
                      </tr>
                   </thead>
@@ -434,6 +464,7 @@
                      <tr v-for="l in lideres" :key="l.id" class="hover:bg-slate-50/50">
                         <td class="px-6 py-4 font-bold text-[#113366]">{{ l.nome }}</td>
                         <td class="px-6 py-4 uppercase font-bold text-slate-400 text-center">{{ l.areas?.nome || 'Sem Área' }}</td>
+                        <td class="px-6 py-4 text-center font-black text-indigo-600">{{ l.turno || '-' }}</td>
                         <td class="px-6 py-4 text-right">
                            <button @click="handleDeleteLider(l.id)" class="text-slate-300 hover:text-red-500 transition-colors"><i class="ph-bold ph-trash"></i></button>
                         </td>
@@ -479,8 +510,63 @@
          </div>
       </div>
 
-    </main>
-  </div>
+   <!-- MODAL: PASSAGEM DE TURNO -->
+   <div v-if="showHandoverModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div class="bg-white w-full max-w-xl rounded-[32px] shadow-2xl p-8 border border-slate-100 animate-in zoom-in-95 duration-300">
+         <div class="flex justify-between items-center mb-8">
+            <h3 class="text-2xl font-black text-[#113366]">Passagem de Turno</h3>
+            <button @click="showHandoverModal = false" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 transition-colors">
+               <i class="ph ph-x text-xl"></i>
+            </button>
+         </div>
+
+         <div class="space-y-6">
+            <!-- Saída (T1) -->
+            <div>
+               <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saindo (Turno Anterior)</label>
+               <select v-model="formHandover.origem_id" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#ee4d2d] outline-none font-black text-[#113366] mt-1 bg-slate-50">
+                  <option value="" disabled>Selecione o Líder que sai...</option>
+                  <option v-for="l in lideres" :key="l.id" :value="l.id">
+                     [{{ l.turno || '?' }}] {{ l.nome }} ({{ l.areas?.nome }}) - Atual: {{ getLiderQty(l.lider_inventory) }}
+                  </option>
+               </select>
+            </div>
+
+            <!-- Entrada (T2) -->
+            <div>
+               <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Entrando (Próximo Turno)</label>
+               <select v-model="formHandover.destino_id" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#ee4d2d] outline-none font-black text-[#113366] mt-1 bg-slate-50">
+                  <option value="" disabled>Selecione o Líder que assume...</option>
+                  <option v-for="l in lideres.filter(x => x.id !== formHandover.origem_id)" :key="l.id" :value="l.id">
+                     [{{ l.turno || '?' }}] {{ l.nome }} ({{ l.areas?.nome }})
+                  </option>
+               </select>
+            </div>
+
+            <!-- Quantidade Recebida -->
+            <div>
+               <div class="flex justify-between mb-2">
+                  <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quantidade Conferida pelo Próximo Turno</label>
+                  <span v-if="formHandover.origem_id" class="text-[10px] font-bold text-[#113366]">João passou originalmente: {{ getLiderQty(lideres.find(l => l.id === formHandover.origem_id)?.lider_inventory) }}</span>
+               </div>
+               <input type="number" v-model.number="formHandover.quantidade" min="0" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#113366] outline-none font-black text-4xl text-center text-[#113366] bg-indigo-50/50">
+            </div>
+
+            <div v-if="formHandover.origem_id && formHandover.destino_id" class="p-4 bg-blue-50 border border-blue-100 rounded-2xl">
+               <p class="text-[11px] font-medium text-blue-700 leading-tight">
+                  <i class="ph-fill ph-info text-lg align-middle mr-1"></i>
+                  O estoque do líder que sai será zerado. A quantidade informada será atribuída ao líder que entra. 
+                  Diferenças em relação ao estoque original do T1 serão automaticamente ajustadas com o saldo da área.
+               </p>
+            </div>
+
+            <button @click="handleShiftHandover" :disabled="loading || !formHandover.origem_id || !formHandover.destino_id" class="w-full py-5 bg-[#113366] text-white rounded-2xl font-black shadow-xl shadow-[#113366]/20 transition-all hover:scale-[1.02] disabled:opacity-30">
+               CONFIRMAR PASSAGEM DE TURNO
+            </button>
+         </div>
+      </div>
+   </div>
+</div>
 </template>
 
 <script setup>
@@ -521,8 +607,13 @@ const opType = ref('saida');
 const formOp = ref({ lider_id: '', quantidade: 1, observacao: '' });
 const formPlan = ref({ data: '', turno: 'T1', areas: {} });
 const formNewArea = ref({ id: null, nome: '', quantidade_total: 0 });
-const formNewLider = ref({ nome: '', area_id: '' });
+const formNewLider = ref({ nome: '', area_id: '', turno: 'T1' });
+
+const editingLider = ref(null);
+
 const showNewTransferModal = ref(false);
+const showHandoverModal = ref(false);
+const formHandover = ref({ origem_id: '', destino_id: '', quantidade: 0 });
 const formTransfer = ref({ origem_id: '', destino_id: '', quantidade: 1 });
 
 const tabs = [
@@ -810,12 +901,53 @@ const handleDeleteArea = async (id) => {
   finally { loading.value = false; }
 };
 
+const openHandoverModal = () => {
+   formHandover.value = { origem_id: '', destino_id: '', quantidade: 0 };
+   showHandoverModal.value = true;
+};
+
+const handleShiftHandover = async () => {
+    loading.value = true;
+    try {
+        const { origem_id, destino_id, quantidade } = formHandover.value;
+        const leaderOrigem = lideres.value.find(l => l.id === origem_id);
+        const leaderDestino = lideres.value.find(l => l.id === destino_id);
+        
+        if (!leaderOrigem || !leaderDestino) throw new Error('Selecione os dois líderes.');
+
+        // 1. Zera estoque do que sai
+        await supabase.from('lider_inventory').upsert({ lider_id: origem_id, quantidade: 0, last_updated: new Date().toISOString() }, { onConflict: 'lider_id' });
+        
+        // 2. Define estoque do que entra
+        await supabase.from('lider_inventory').upsert({ lider_id: destino_id, quantidade, last_updated: new Date().toISOString() }, { onConflict: 'lider_id' });
+
+        // 3. Log Movimentações
+        // Para o histórico ficar claro: 
+        // a) Saída total do líder anterior
+        // b) Entrada total do novo líder
+        const qtyOrigem = getLiderQty(leaderOrigem.lider_inventory);
+        await supabase.from('movimentacoes').insert([
+            { lider_id: origem_id, tipo: 'Retorno', quantidade: qtyOrigem, admin_id: adminUser.value, observacao: `Passagem de turno para ${leaderDestino.nome}` },
+            { lider_id: destino_id, tipo: 'Saída', quantidade: quantidade, admin_id: adminUser.value, observacao: `Recebido em passagem de turno de ${leaderOrigem.nome}` }
+        ]);
+
+        showMessage('Passagem de turno realizada com sucesso!');
+        showHandoverModal.value = false;
+        await fetchInitialData();
+    } catch (e) {
+        showMessage(e.message, 'erro');
+    } finally {
+        loading.value = false;
+    }
+};
+
 const handleAddLider = async () => {
     loading.value = true;
     try {
         const { data: lid, error } = await supabase.from('lideres').insert({ 
             nome: formNewLider.value.nome, 
-            area_id: formNewLider.value.area_id 
+            area_id: formNewLider.value.area_id,
+            turno: formNewLider.value.turno
         }).select().single();
         if (error) throw error;
         

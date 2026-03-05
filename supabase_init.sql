@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS lideres (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome TEXT NOT NULL UNIQUE,
     area_id UUID REFERENCES areas(id) ON DELETE SET NULL,
+    turno TEXT, -- T1, T2, T3
     created_at TIMESTAMPTZ DEFAULT now()
 );
 

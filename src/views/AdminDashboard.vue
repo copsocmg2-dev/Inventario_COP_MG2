@@ -739,7 +739,7 @@ const handleSavePlanning = async () => {
             area_id: areaId,
             quantidade: qty
         }));
-        const { error } = await supabase.from('planejamento').upsert(payload, { onConflict: 'data, turno, area_id' });
+        const { error } = await supabase.from('planejamento').upsert(payload, { onConflict: 'data,turno,area_id' });
         if (error) throw error;
         showMessage('Planejamento salvo!');
         await fetchInitialData();

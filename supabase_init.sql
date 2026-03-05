@@ -90,3 +90,11 @@ BEGIN
     SELECT id, 0 FROM lideres
     ON CONFLICT (lider_id) DO NOTHING;
 END $$;
+
+-- 7. Garantir que as tabelas estão acessíveis (Desativar RLS para este projeto)
+ALTER TABLE areas DISABLE ROW LEVEL SECURITY;
+ALTER TABLE lideres DISABLE ROW LEVEL SECURITY;
+ALTER TABLE lider_inventory DISABLE ROW LEVEL SECURITY;
+ALTER TABLE movimentacoes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE trocas_pendentes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE planejamento DISABLE ROW LEVEL SECURITY;

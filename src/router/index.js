@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AdminDashboard from '../views/AdminDashboard.vue'
-import AdminDashboard from '../views/AdminDashboard.vue'
 
 const routes = [
     { path: '/', redirect: '/admin' },

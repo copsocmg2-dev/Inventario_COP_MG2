@@ -163,7 +163,7 @@
 
            <button @click="handleRecordingOp" :disabled="!isOpValid || loading" 
                    :class="['w-full py-5 rounded-2xl font-black shadow-xl transition-all uppercase tracking-widest text-white', 
-                           opType === 'saida' ? 'bg-[#113366] shadow-brand-blue-20 hover:scale-[1.01]' : 'bg-[#ee4d2d] shadow-brand-orange-20 hover:scale-[1.01]',
+                           opType === 'saida' ? 'bg-[#113366] shadow-[#113366]/20 hover:scale-[1.01]' : 'bg-[#ee4d2d] shadow-[#ee4d2d]/20 hover:scale-[1.01]',
                            (!isOpValid || loading) ? 'opacity-30' : '']">
               Confirmar {{ opType === 'saida' ? 'Saída' : 'Retorno' }} de {{ formOp.quantidade }} PDAs
            </button>
@@ -239,10 +239,11 @@
                <div v-if="!adminUser" class="text-[10px] font-black text-red-500 uppercase">Selecione Admin para Aprovar</div>
                <div v-else class="flex gap-2">
                   <button @click="handleActionTransfer(t.id, 'REJEITADO')" class="px-5 py-3 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs hover:bg-red-50 hover:text-red-500 transition-all">REJEITAR</button>
-                  <button @click="handleActionTransfer(t, 'APROVADO')" class="px-8 py-3 rounded-xl bg-[#113366] text-white font-bold text-xs shadow-lg shadow-brand-blue-20 hover:bg-[#0c2447]">APROVAR</button>
+                  <button @click="handleActionTransfer(t, 'APROVADO')" class="px-8 py-3 rounded-xl bg-[#113366] text-white font-bold text-xs shadow-lg shadow-[#113366]/20 hover:bg-[#0c2447]">APROVAR</button>
                </div>
             </div>
          </div>
+
          <div v-else class="text-center py-16 bg-slate-50 border-2 border-dashed border-slate-100 rounded-[40px] text-slate-300 font-black italic">
             Nenhuma transferência pendente de autorização.
          </div>
@@ -823,8 +824,3 @@ onUnmounted(() => {
   if (channel) supabase.removeChannel(channel);
 });
 </script>
-
-<style scoped>
-.shadow-brand-blue-20 { shadow-color: rgba(17, 51, 102, 0.2); }
-.shadow-brand-orange-20 { shadow-color: rgba(238, 77, 45, 0.2); }
-</style>

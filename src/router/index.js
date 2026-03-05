@@ -1,11 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AdminDashboard from '../views/AdminDashboard.vue'
-import LeaderMobile from '../views/LeaderMobile.vue'
+import AdminDashboard from '../views/AdminDashboard.vue'
 
 const routes = [
     { path: '/', redirect: '/admin' },
-    { path: '/admin', name: 'Admin', component: AdminDashboard },
-    { path: '/lider', name: 'Lider', component: LeaderMobile }
+    { path: '/admin', name: 'Admin', component: AdminDashboard }
 ]
 
 const router = createRouter({

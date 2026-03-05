@@ -136,7 +136,7 @@
                  <select v-model="formOp.lider_id" @change="updateLiderMax" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#113366] outline-none font-bold text-[#113366] bg-slate-50">
                     <option value="" disabled>Selecione o Líder...</option>
                     <option v-for="l in lideres" :key="l.id" :value="l.id">
-                      {{ l.nome }} ({{ l.areas?.nome }}) - Atual: {{ l.lider_inventory?.[0]?.quantidade || 0 }}
+                      {{ l.nome }} ({{ l.areas?.nome }}) - Atual: {{ Array.isArray(l.lider_inventory) ? (l.lider_inventory[0]?.quantidade || 0) : (l.lider_inventory?.quantidade || 0) }}
                     </option>
                  </select>
               </div>
@@ -147,7 +147,7 @@
                     <span v-if="opType === 'retorno' && formOp.lider_id" class="text-[10px] font-bold text-orange-500">Posse atual: {{ currentLiderQty }}</span>
                     <span v-if="opType === 'saida' && formOp.lider_id" class="text-[10px] font-bold text-green-500">Disponível na Área: {{ areaAvailableQty }}</span>
                  </div>
-                 <input type="number" v-model="formOp.quantidade" min="1" :max="opMax" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#113366] outline-none font-black text-3xl text-center text-[#113366] bg-slate-50">
+                 <input type="number" v-model.number="formOp.quantidade" min="1" :max="opMax" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#113366] outline-none font-black text-3xl text-center text-[#113366] bg-slate-50">
               </div>
            </div>
 
@@ -156,10 +156,18 @@
               <textarea v-model="formOp.observacao" rows="2" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#113366] outline-none font-medium text-slate-600 bg-slate-50" placeholder="Motivo da saída/retorno..."></textarea>
            </div>
 
-           <div v-if="!adminUser" class="p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-600 animate-pulse">
-              <i class="ph-fill ph-warning-circle text-xl"></i>
-              <p class="text-xs font-bold">Por favor, selecione sua identificação admin na lateral esquerda para continuar.</p>
-           </div>
+            <div v-if="!adminUser" class="p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-600 animate-pulse">
+               <i class="ph-fill ph-warning-circle text-xl"></i>
+               <p class="text-xs font-bold">Por favor, selecione sua identificação admin na lateral esquerda para continuar.</p>
+            </div>
+
+            <div v-if="adminUser && formOp.lider_id && opMax <= 0" class="p-4 bg-orange-50 border border-orange-100 rounded-xl flex items-center gap-3 text-orange-600">
+               <i class="ph-fill ph-warning text-xl"></i>
+               <p class="text-xs font-bold">
+                 {{ opType === 'saida' ? 'Não há PDAs disponíveis para saída nesta área.' : 'Este líder não possui PDAs para retornar.' }}
+                 <span v-if="opType === 'saida'" class="block mt-1 opacity-70">Verifique a "Capacidade Total" da área em Configurações.</span>
+               </p>
+            </div>
 
            <button @click="handleRecordingOp" :disabled="!isOpValid || loading" 
                    :class="['w-full py-5 rounded-2xl font-black shadow-xl transition-all uppercase tracking-widest text-white', 
@@ -625,7 +633,9 @@ const fetchInitialData = async () => {
     const { data: areasData } = await supabase.from('areas').select('*').order('nome');
     areas.value = areasData || [];
 
-    const { data: leadersData } = await supabase.from('lideres').select('*, areas(nome), lider_inventory(quantidade)');
+    const { data: leadersData, error: lError } = await supabase.from('lideres').select('*, areas(nome), lider_inventory(quantidade)');
+    if (lError) console.error('Leaders Fetch Error:', lError);
+    console.log('Leaders Data Raw:', leadersData);
     lideres.value = leadersData || [];
 
     const { data: transfersData } = await supabase.from('trocas_pendentes').select('*, lider_origem:lideres!lider_origem_id(nome), lider_destino:lideres!lider_destino_id(nome)').eq('status', 'PENDENTE');
@@ -653,8 +663,16 @@ const handleRecordingOp = async () => {
     const typeLabel = opType.value === 'saida' ? 'Saída' : 'Retorno';
     
     // 1. Update Leader Inventory
-    const currentQty = lideres.value.find(l => l.id === lider_id)?.lider_inventory?.[0]?.quantidade || 0;
-    const newQty = opType.value === 'saida' ? currentQty + quantidade : currentQty - quantidade;
+    // Help helper function to get quantity from possible array or object
+    const getQty = (inv) => {
+      if (!inv) return 0;
+      if (Array.isArray(inv)) return inv[0]?.quantidade || 0;
+      return inv.quantidade || 0;
+    };
+
+    const leader = lideres.value.find(l => l.id === lider_id);
+    const currentQty = getQty(leader?.lider_inventory);
+    const newQty = opType.value === 'saida' ? currentQty + (quantidade || 0) : currentQty - (quantidade || 0);
     
     const payload = { lider_id, quantidade: newQty, last_updated: new Date().toISOString() };
     console.log('Upserting inventory:', payload);

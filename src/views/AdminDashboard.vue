@@ -765,11 +765,11 @@ const fetchInitialData = async () => {
     const { data: areasData } = await supabase.from('areas').select('*').order('nome');
     areas.value = areasData || [];
 
-    const { data: leadersData, error: lError } = await supabase.from('lideres').select('*, areas(nome), lider_inventory(quantidade)');
+    const { data: leadersData, error: lError } = await supabase.from('lideres').select('*, lider_inventory(quantidade, area_id)');
     if (lError) console.error('Leaders Fetch Error:', lError);
     console.log('Leaders Data Raw:', JSON.stringify(leadersData, null, 2));
     
-    // Diagnostic log for specific records
+    // Diagnostic log
     if (leadersData && leadersData.length > 0) {
       console.log('First leader inventory:', leadersData[0].lider_inventory);
     }

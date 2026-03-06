@@ -88,18 +88,11 @@ INSERT INTO areas (nome, quantidade_total) VALUES
 ON CONFLICT (nome) DO UPDATE SET quantidade_total = EXCLUDED.quantidade_total;
 
 -- Inserindo Líderes
-DO $$
-BEGIN
     INSERT INTO lideres (nome, turno) VALUES
     ('Líder João Silva', 'T1'),
     ('Líder Maria Oliveira', 'T2'),
     ('Líder Carlos Souza', 'T1')
     ON CONFLICT (nome) DO NOTHING;
-
-    -- Inicializar inventário dos líderes (0 por padrão)
-    INSERT INTO lider_inventory (lider_id, quantidade)
-    SELECT id, 0 FROM lideres
-    ON CONFLICT (lider_id) DO NOTHING;
 END $$;
 
 -- 7. Garantir que as tabelas estão acessíveis (Desativar RLS para este projeto)

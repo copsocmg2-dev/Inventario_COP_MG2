@@ -204,10 +204,10 @@
                 <span v-if="l.turno" class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-black">{{ l.turno }}</span>
               </div>
               
-              <div class="bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl w-full flex flex-col items-center">
-                 <span class="text-[10px] font-black uppercase">Em Posse</span>
-                 <span class="text-4xl font-black">{{ l.lider_inventory?.[0]?.quantidade || 0 }}</span>
-              </div>
+               <div class="bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl w-full flex flex-col items-center">
+                  <span class="text-[10px] font-black uppercase">Em Posse</span>
+                  <span class="text-4xl font-black">{{ getLiderQty(l.lider_inventory) }}</span>
+               </div>
            </div>
         </div>
       </div>
@@ -734,7 +734,13 @@ const fetchInitialData = async () => {
 
     const { data: leadersData, error: lError } = await supabase.from('lideres').select('*, areas(nome), lider_inventory(quantidade)');
     if (lError) console.error('Leaders Fetch Error:', lError);
-    console.log('Leaders Data Raw:', leadersData);
+    console.log('Leaders Data Raw:', JSON.stringify(leadersData, null, 2));
+    
+    // Diagnostic log for specific records
+    if (leadersData && leadersData.length > 0) {
+      console.log('First leader inventory:', leadersData[0].lider_inventory);
+    }
+    
     lideres.value = leadersData || [];
 
     const { data: transfersData } = await supabase.from('trocas_pendentes').select('*, lider_origem:lideres!lider_origem_id(nome), lider_destino:lideres!lider_destino_id(nome)').eq('status', 'PENDENTE');

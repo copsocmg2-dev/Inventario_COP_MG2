@@ -662,29 +662,29 @@ const navClass = (id) => `w-full flex items-center gap-3 px-4 py-3 rounded-xl tr
 const pendingTransfersCount = computed(() => pendingTransfers.value.length);
 
 const inventoryByArea = computed(() => {
-  return areas.value.map(area => {
+  return (areas.value || []).map(area => {
     // In Use: soma das quantidades de PDAs em cada área (agora salvo no inventory)
-    const inUse = lideres.value.reduce((sum, l) => sum + getLiderQty(l.lider_inventory, area.id), 0);
+    const inUse = (lideres.value || []).reduce((sum, l) => sum + getLiderQty(l.lider_inventory, area.id), 0);
     
     return {
       ...area,
       inUse,
-      available: Math.max(0, area.quantidade_total - inUse)
+      available: Math.max(0, (area.quantidade_total || 0) - inUse)
     };
   });
 });
 
 const kpis = computed(() => {
-  const totalPool = areas.value.reduce((sum, a) => sum + a.quantidade_total, 0);
-  const totalInUse = areas.value.reduce((sum, a) => {
-      const areaInv = inventoryByArea.value.find(area => area.id === a.id);
+  const totalPool = (areas.value || []).reduce((sum, a) => sum + (a.quantidade_total || 0), 0);
+  const totalInUse = (areas.value || []).reduce((sum, a) => {
+      const areaInv = (inventoryByArea.value || []).find(area => area.id === a.id);
       return sum + (areaInv?.inUse || 0);
   }, 0);
   return {
     total: totalPool,
     disponiveis: totalPool - totalInUse,
     comLideres: totalInUse,
-    areas: areas.value.length
+    areas: (areas.value || []).length
   };
 });
 
@@ -696,19 +696,19 @@ const kpiCards = computed(() => [
 ]);
 
 const leadersWithStock = computed(() => {
-  return lideres.value
-    .filter(l => l.nome.toLowerCase().includes(filtroLider.value.toLowerCase()))
+  return (lideres.value || [])
+    .filter(l => (l.nome || '').toLowerCase().includes((filtroLider.value || '').toLowerCase()))
     .sort((a, b) => getLiderQty(b.lider_inventory) - getLiderQty(a.lider_inventory));
 });
 
 const currentLiderQty = computed(() => {
-   const l = lideres.value.find(lid => lid.id === formOp.value.lider_id);
+   const l = (lideres.value || []).find(lid => lid.id === formOp.value.lider_id);
    return getLiderQty(l?.lider_inventory, formOp.value.area_id);
 });
 
 const areaAvailableQty = computed(() => {
    if (!formOp.value.area_id) return 0;
-   const area = inventoryByArea.value.find(a => a.id === formOp.value.area_id);
+   const area = (inventoryByArea.value || []).find(a => a.id === formOp.value.area_id);
    return area?.available || 0;
 });
 
@@ -735,10 +735,10 @@ const isTransferValid = computed(() => {
 
 const onPageList = computed(() => {
   if (!filtroOnPage.value.data || !filtroOnPage.value.turno) return [];
-  return areas.value.map(area => {
-    const plan = planejamento.value.find(p => p.area_id === area.id && p.data === filtroOnPage.value.data && p.turno === filtroOnPage.value.turno);
+  return (areas.value || []).map(area => {
+    const plan = (planejamento.value || []).find(p => p.area_id === area.id && p.data === filtroOnPage.value.data && p.turno === filtroOnPage.value.turno);
     // Realizado: soma de todos os PDAs em posse de líderes PARA ESTA ÁREA específica
-    const realizado = lideres.value.reduce((sum, l) => sum + getLiderQty(l.lider_inventory, area.id), 0);
+    const realizado = (lideres.value || []).reduce((sum, l) => sum + getLiderQty(l.lider_inventory, area.id), 0);
     
     return {
       areaId: area.id,
@@ -746,7 +746,7 @@ const onPageList = computed(() => {
       realizado,
       planejado: plan ? plan.quantidade : 0
     };
-  }).filter(a => a.planejado > 0 || a.realizado > 0);
+  }).filter(a => (a.planejado || 0) > 0 || (a.realizado || 0) > 0);
 });
 
 // Methods
@@ -784,10 +784,14 @@ const fetchInitialData = async () => {
     console.log('Leaders Mapped:', JSON.stringify(mappedLeaders, null, 2));
     lideres.value = mappedLeaders;
 
-    const { data: transfersData } = await supabase.from('trocas_pendentes').select('*, lider_origem:lideres!lider_origem_id(nome), lider_destino:lideres!lider_destino_id(nome)').eq('status', 'PENDENTE');
+    const { data: transfersData, error: tError } = await supabase.from('trocas_pendentes')
+        .select('*, lider_origem:lideres!lider_origem_id(nome), lider_destino:lideres!lider_destino_id(nome)')
+        .eq('status', 'PENDENTE');
+    if (tError) console.warn('Transfers Fetch Error:', tError);
     pendingTransfers.value = transfersData || [];
 
-    const { data: planData } = await supabase.from('planejamento').select('*');
+    const { data: planData, error: pError } = await supabase.from('planejamento').select('*');
+    if (pError) console.warn('Planning Fetch Error:', pError);
     planejamento.value = planData || [];
 
     const op = getInfoOperacional();
@@ -995,16 +999,12 @@ const handleAddLider = async () => {
     try {
         const { data: lid, error } = await supabase.from('lideres').insert({ 
             nome: formNewLider.value.nome, 
-            area_id: formNewLider.value.area_id,
             turno: formNewLider.value.turno
         }).select().single();
         if (error) throw error;
         
-        // Initialize inventory
-        await supabase.from('lider_inventory').insert({ lider_id: lid.id, quantidade: 0 });
-
         showMessage('Líder cadastrado!');
-        formNewLider.value = { nome: '', area_id: '' };
+        formNewLider.value = { nome: '', turno: 'T1' };
         await fetchInitialData();
     } catch (e) { showMessage(e.message, 'erro'); }
     finally { loading.value = false; }

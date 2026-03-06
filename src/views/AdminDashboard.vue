@@ -617,9 +617,11 @@ const getLiderQty = (inv, areaId = null) => {
   if (!inv) return 0;
   const items = Array.isArray(inv) ? inv : [inv];
   if (areaId) {
-    return items.find(i => i.area_id === areaId)?.quantidade || 0;
+    return items
+      .filter(i => String(i.area_id) === String(areaId))
+      .reduce((sum, i) => sum + (Number(i.quantidade) || 0), 0);
   }
-  return items.reduce((sum, i) => sum + (i.quantidade || 0), 0);
+  return items.reduce((sum, i) => sum + (Number(i.quantidade) || 0), 0);
 };
 const areas = ref([]);
 const lideres = ref([]);

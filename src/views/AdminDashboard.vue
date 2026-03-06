@@ -765,7 +765,9 @@ const fetchInitialData = async () => {
     const { data: areasData } = await supabase.from('areas').select('*').order('nome');
     areas.value = areasData || [];
 
-    const { data: leadersData, error: lError } = await supabase.from('lideres').select('*, lider_inventory(quantidade, area_id)');
+    const { data: leadersData, error: lError } = await supabase
+      .from('lideres')
+      .select('*, lider_inventory(quantidade, area_id)');
     if (lError) console.error('Leaders Fetch Error:', lError);
     console.log('Leaders Data Raw:', JSON.stringify(leadersData, null, 2));
     

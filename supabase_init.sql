@@ -15,23 +15,26 @@ CREATE TABLE IF NOT EXISTS areas (
 CREATE TABLE IF NOT EXISTS lideres (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome TEXT NOT NULL UNIQUE,
-    area_id UUID REFERENCES areas(id) ON DELETE SET NULL,
     turno TEXT, -- T1, T2, T3
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 3. Inventário por Líder (Quantos PDAs cada líder tem agora)
+-- 3. Inventário por Líder (Posse Atual)
+-- Agora associamos a quantidade à área em que o líder está atuando
 CREATE TABLE IF NOT EXISTS lider_inventory (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    lider_id UUID REFERENCES lideres(id) ON DELETE CASCADE UNIQUE,
-    quantidade INT DEFAULT 0 CHECK (quantidade >= 0),
-    last_updated TIMESTAMPTZ DEFAULT now()
+    lider_id UUID REFERENCES lideres(id) ON DELETE CASCADE,
+    area_id UUID REFERENCES areas(id) ON DELETE CASCADE,
+    quantidade INT DEFAULT 0,
+    last_updated TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(lider_id, area_id) -- Permite que o líder tenha PDAs em áreas diferentes simultaneamente
 );
 
 -- 4. Movimentações (Histórico de Saídas, Retornos e Trocas)
 CREATE TABLE IF NOT EXISTS movimentacoes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     lider_id UUID REFERENCES lideres(id) ON DELETE SET NULL,
+    area_id UUID REFERENCES areas(id) ON DELETE SET NULL, -- Área onde a movimentação ocorreu
     tipo TEXT NOT NULL, -- 'Saída', 'Retorno', 'Transferência-Enviada', 'Transferência-Recebida'
     quantidade INT NOT NULL,
     data TIMESTAMPTZ DEFAULT now(),
@@ -44,10 +47,12 @@ CREATE TABLE IF NOT EXISTS movimentacoes (
 CREATE TABLE IF NOT EXISTS trocas_pendentes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     lider_origem_id UUID REFERENCES lideres(id) ON DELETE CASCADE,
+    area_origem_id UUID REFERENCES areas(id) ON DELETE SET NULL, -- Área de onde os PDAs estão saindo
     lider_destino_id UUID REFERENCES lideres(id) ON DELETE CASCADE,
+    area_id UUID REFERENCES areas(id) ON DELETE SET NULL, -- Área onde o destino irá usar
     quantidade INT NOT NULL CHECK (quantidade > 0),
-    status TEXT DEFAULT 'PENDENTE', -- PENDENTE, APROVADO, REJEITADO
-    data_solicitacao TIMESTAMPTZ DEFAULT now(),
+    status TEXT DEFAULT 'PENDENTE', -- 'PENDENTE', 'APROVADO', 'REJEITADO'
+    created_at TIMESTAMPTZ DEFAULT now(),
     admin_id TEXT -- Quem aprovou/rejeitou
 );
 
@@ -65,25 +70,30 @@ CREATE TABLE IF NOT EXISTS planejamento (
 -- DADOS FICTÍCIOS PARA TESTE (SEED DATA)
 -- ==========================================
 
--- Inserindo Áreas com quantidades totais de PDAs cada uma "possui"
-INSERT INTO areas (nome, quantidade_total) VALUES 
-('Recebimento', 20), 
-('Expedição', 30), 
-('Esteira', 15), 
-('Retorno', 10),
-('Inventário', 5)
+-- Inserindo Áreas com quantidades totais
+INSERT INTO areas (nome, quantidade_total) VALUES
+('Recebimento FM', 50),
+('Recebimento LH', 50),
+('Esteira HUB 1', 30),
+('Esteira HUB 2', 30),
+('Esteira HUB 3', 30),
+('Esteira SOC 1', 30),
+('Esteira SOC 2', 30),
+('Sorter', 40),
+('Esteira Volumoso 1', 25),
+('Esteira Volumoso 2', 25),
+('Esteira Termoplastica', 20),
+('Transição', 15),
+('Expedição', 100)
 ON CONFLICT (nome) DO UPDATE SET quantidade_total = EXCLUDED.quantidade_total;
 
 -- Inserindo Líderes
 DO $$
-DECLARE 
-    area_rec_id UUID := (SELECT id FROM areas WHERE nome = 'Recebimento');
-    area_exp_id UUID := (SELECT id FROM areas WHERE nome = 'Expedição');
 BEGIN
-    INSERT INTO lideres (nome, area_id) VALUES 
-    ('Líder João Silva', area_rec_id),
-    ('Líder Maria Oliveira', area_exp_id),
-    ('Líder Carlos Souza', area_rec_id)
+    INSERT INTO lideres (nome, turno) VALUES
+    ('Líder João Silva', 'T1'),
+    ('Líder Maria Oliveira', 'T2'),
+    ('Líder Carlos Souza', 'T1')
     ON CONFLICT (nome) DO NOTHING;
 
     -- Inicializar inventário dos líderes (0 por padrão)

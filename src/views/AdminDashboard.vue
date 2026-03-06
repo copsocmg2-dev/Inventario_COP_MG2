@@ -133,20 +133,28 @@
            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div class="space-y-4">
                  <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Líder Responsável</label>
-                 <select v-model="formOp.lider_id" @change="updateLiderMax" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#113366] outline-none font-bold text-[#113366] bg-slate-50">
-                    <option value="" disabled>Selecione o Líder...</option>
-                    <option v-for="l in lideres" :key="l.id" :value="l.id">
-                      {{ l.nome }} ({{ l.areas?.nome }}) - Atual: {{ getLiderQty(l.lider_inventory) }}
-                    </option>
-                 </select>
-              </div>
+                  <select v-model="formOp.lider_id" @change="updateLiderMax" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#113366] outline-none font-bold text-[#113366] bg-slate-50">
+                     <option value="" disabled>Selecione o Líder...</option>
+                     <option v-for="l in lideres" :key="l.id" :value="l.id">
+                       {{ l.nome }} ({{ l.turno || '-' }}) - Atual: {{ getLiderQty(l.lider_inventory) }}
+                     </option>
+                  </select>
+               </div>
+
+               <div class="space-y-4">
+                  <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Área Atuante</label>
+                  <select v-model="formOp.area_id" @change="updateLiderMax" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#113366] outline-none font-bold text-[#113366] bg-slate-50">
+                     <option value="" disabled>Selecione a Área...</option>
+                     <option v-for="a in areas" :key="a.id" :value="a.id">{{ a.nome }}</option>
+                  </select>
+               </div>
 
               <div class="space-y-4">
                  <div class="flex justify-between items-end">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quantidade</label>
-                    <span v-if="opType === 'retorno' && formOp.lider_id" class="text-[10px] font-bold text-orange-500">Posse atual: {{ currentLiderQty }}</span>
-                    <span v-if="opType === 'saida' && formOp.lider_id" class="text-[10px] font-bold text-green-500">Disponível na Área: {{ areaAvailableQty }}</span>
-                 </div>
+                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quantidade</label>
+                     <span v-if="opType === 'retorno' && formOp.lider_id" class="text-[10px] font-bold text-orange-500">Posse atual: {{ currentLiderQty }}</span>
+                     <span v-if="opType === 'saida' && formOp.area_id" class="text-[10px] font-bold text-green-500">Disponível na Área: {{ areaAvailableQty }}</span>
+                  </div>
                  <input type="number" v-model.number="formOp.quantidade" min="1" :max="opMax" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#113366] outline-none font-black text-3xl text-center text-[#113366] bg-slate-50">
               </div>
            </div>
@@ -200,7 +208,7 @@
               </div>
               <h4 class="font-black text-[#113366] text-lg leading-tight mb-1">{{ l.nome }}</h4>
               <div class="flex items-center gap-2 mb-4">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ l.areas?.nome }}</span>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Múltiplas Áreas</span>
                 <span v-if="l.turno" class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-black">{{ l.turno }}</span>
               </div>
               
@@ -427,25 +435,19 @@
          <div v-if="configSubTab === 'lideres'" class="grid grid-cols-1 md:grid-cols-4 gap-6 text-sm">
             <div class="md:col-span-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit space-y-4">
                <h4 class="font-black text-[#113366] mb-4 uppercase text-xs tracking-widest">Novo Líder</h4>
-               <div>
-                  <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Nome Completo</label>
-                  <input type="text" v-model="formNewLider.nome" class="w-full px-4 py-2 border-2 border-slate-100 rounded-lg focus:border-[#ee4d2d] outline-none font-bold text-sm">
-               </div>
-               <div>
-                  <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Área Fixa</label>
-                  <select v-model="formNewLider.area_id" class="w-full px-4 py-2 border-2 border-slate-100 rounded-lg focus:border-[#ee4d2d] outline-none font-bold text-sm">
-                     <option v-for="a in areas" :key="a.id" :value="a.id">{{ a.nome }}</option>
-                  </select>
-               </div>
-               <div>
-                  <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Turno</label>
-                  <select v-model="formNewLider.turno" class="w-full px-4 py-2 border-2 border-slate-100 rounded-lg focus:border-[#ee4d2d] outline-none font-bold text-sm">
-                     <option value="T1">T1</option>
-                     <option value="T2">T2</option>
-                     <option value="T3">T3</option>
-                  </select>
-               </div>
-               <button @click="handleAddLider" :disabled="!formNewLider.nome || !formNewLider.area_id || loading"
+                <div>
+                   <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Nome Completo</label>
+                   <input type="text" v-model="formNewLider.nome" class="w-full px-4 py-2 border-2 border-slate-100 rounded-lg focus:border-[#ee4d2d] outline-none font-bold text-sm">
+                </div>
+                <div>
+                   <label class="text-[9px] font-black text-slate-400 uppercase mb-1 block">Turno</label>
+                   <select v-model="formNewLider.turno" class="w-full px-4 py-2 border-2 border-slate-100 rounded-lg focus:border-[#ee4d2d] outline-none font-bold text-sm">
+                      <option value="T1">T1</option>
+                      <option value="T2">T2</option>
+                      <option value="T3">T3</option>
+                   </select>
+                </div>
+                <button @click="handleAddLider" :disabled="!formNewLider.nome || loading"
                        class="w-full bg-[#113366] text-white py-3 rounded-xl font-black text-xs hover:bg-[#0c2447] disabled:opacity-30">
                   SALVAR / CADASTRAR LÍDER
                </button>
@@ -454,18 +456,16 @@
                <table class="w-full text-left">
                   <thead class="bg-slate-50 border-b border-slate-100">
                      <tr>
-                        <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Líder</th>
-                        <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest text-center">Área</th>
-                        <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest text-center">Turno</th>
-                        <th class="px-6 py-4 text-right">Ação</th>
+                         <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Líder</th>
+                         <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest text-center">Turno</th>
+                         <th class="px-6 py-4 text-right">Ação</th>
                      </tr>
                   </thead>
                   <tbody class="divide-y divide-slate-50">
-                     <tr v-for="l in lideres" :key="l.id" class="hover:bg-slate-50/50">
-                        <td class="px-6 py-4 font-bold text-[#113366]">{{ l.nome }}</td>
-                        <td class="px-6 py-4 uppercase font-bold text-slate-400 text-center">{{ l.areas?.nome || 'Sem Área' }}</td>
-                        <td class="px-6 py-4 text-center font-black text-indigo-600">{{ l.turno || '-' }}</td>
-                        <td class="px-6 py-4 text-right">
+                      <tr v-for="l in lideres" :key="l.id" class="hover:bg-slate-50/50">
+                         <td class="px-6 py-4 font-bold text-[#113366]">{{ l.nome }}</td>
+                         <td class="px-6 py-4 text-center font-black text-indigo-600">{{ l.turno || '-' }}</td>
+                         <td class="px-6 py-4 text-right">
                            <button @click="handleDeleteLider(l.id)" class="text-slate-300 hover:text-red-500 transition-colors"><i class="ph-bold ph-trash"></i></button>
                         </td>
                      </tr>
@@ -484,18 +484,34 @@
             </div>
             
             <div class="space-y-4">
+                <div>
+                   <label class="text-[10px] font-black text-slate-400 uppercase block mb-1">Origem (Líder Responsável)</label>
+                   <select v-model="formTransfer.origem_id" class="w-full px-4 py-3 border-2 border-slate-100 rounded-xl font-bold bg-slate-50">
+                      <option value="" disabled>Selecione Líder de Origem</option>
+                      <option v-for="l in lideres" :key="l.id" :value="l.id">{{ l.nome }} (Total: {{ getLiderQty(l.lider_inventory) }})</option>
+                   </select>
+                </div>
+                <div v-if="formTransfer.origem_id">
+                   <label class="text-[10px] font-black text-slate-400 uppercase block mb-1">Área de Origem (Onde estão os PDAs?)</label>
+                   <select v-model="formTransfer.area_origem_id" class="w-full px-4 py-3 border-2 border-slate-100 rounded-xl font-bold bg-slate-50">
+                      <option value="" disabled>Selecione a Área...</option>
+                      <option v-for="ai in lideres.find(l => l.id === formTransfer.origem_id)?.lider_inventory" :key="ai.area_id" :value="ai.area_id">
+                         {{ areas.find(a => a.id === ai.area_id)?.nome }} ({{ ai.quantidade }} PDAs)
+                      </option>
+                   </select>
+                </div>
                <div>
-                  <label class="text-[10px] font-black text-slate-400 uppercase block mb-1">Origem (De)</label>
-                  <select v-model="formTransfer.origem_id" class="w-full px-4 py-3 border-2 border-slate-100 rounded-xl font-bold bg-slate-50">
-                     <option value="" disabled>Selecione Líder de Origem</option>
-                     <option v-for="l in lideres" :key="l.id" :value="l.id">{{ l.nome }} ({{ l.lider_inventory?.[0]?.quantidade || 0 }})</option>
-                  </select>
-               </div>
-               <div>
-                  <label class="text-[10px] font-black text-slate-400 uppercase block mb-1">Destino (Para)</label>
+                  <label class="text-[10px] font-black text-slate-400 uppercase block mb-1">Destino (Para Líder)</label>
                   <select v-model="formTransfer.destino_id" class="w-full px-4 py-3 border-2 border-slate-100 rounded-xl font-bold bg-slate-50">
                      <option value="" disabled>Selecione Líder de Destino</option>
                      <option v-for="l in otherLideresForTransfer" :key="l.id" :value="l.id">{{ l.nome }}</option>
+                  </select>
+               </div>
+               <div v-if="formTransfer.destino_id">
+                  <label class="text-[10px] font-black text-slate-400 uppercase block mb-1">Área em que ele vai usar</label>
+                  <select v-model="formTransfer.area_id" class="w-full px-4 py-3 border-2 border-slate-100 rounded-xl font-bold bg-slate-50">
+                     <option value="" disabled>Selecione a Área...</option>
+                     <option v-for="a in areas" :key="a.id" :value="a.id">{{ a.nome }}</option>
                   </select>
                </div>
                <div>
@@ -527,7 +543,7 @@
                <select v-model="formHandover.origem_id" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#ee4d2d] outline-none font-black text-[#113366] mt-1 bg-slate-50">
                   <option value="" disabled>Selecione o Líder que sai...</option>
                   <option v-for="l in lideres" :key="l.id" :value="l.id">
-                     [{{ l.turno || '?' }}] {{ l.nome }} ({{ l.areas?.nome }}) - Atual: {{ getLiderQty(l.lider_inventory) }}
+                     [{{ l.turno || '?' }}] {{ l.nome }} - Em Posse: {{ getLiderQty(l.lider_inventory) }}
                   </option>
                </select>
             </div>
@@ -538,8 +554,17 @@
                <select v-model="formHandover.destino_id" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#ee4d2d] outline-none font-black text-[#113366] mt-1 bg-slate-50">
                   <option value="" disabled>Selecione o Líder que assume...</option>
                   <option v-for="l in lideres.filter(x => x.id !== formHandover.origem_id)" :key="l.id" :value="l.id">
-                     [{{ l.turno || '?' }}] {{ l.nome }} ({{ l.areas?.nome }})
+                     [{{ l.turno || '?' }}] {{ l.nome }}
                   </option>
+               </select>
+            </div>
+
+            <!-- Área de Atuação (T2) -->
+            <div v-if="formHandover.destino_id">
+               <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Área de Atuação do Próximo Turno</label>
+               <select v-model="formHandover.area_id" class="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-[#ee4d2d] outline-none font-black text-[#113366] mt-1 bg-slate-50">
+                  <option value="" disabled>Selecione a Área...</option>
+                  <option v-for="a in areas" :key="a.id" :value="a.id">{{ a.nome }}</option>
                </select>
             </div>
 
@@ -560,7 +585,7 @@
                </p>
             </div>
 
-            <button @click="handleShiftHandover" :disabled="loading || !formHandover.origem_id || !formHandover.destino_id" class="w-full py-5 bg-[#113366] text-white rounded-2xl font-black shadow-xl shadow-[#113366]/20 transition-all hover:scale-[1.02] disabled:opacity-30">
+            <button @click="handleShiftHandover" :disabled="loading || !formHandover.origem_id || !formHandover.destino_id || !formHandover.area_id" class="w-full py-5 bg-[#113366] text-white rounded-2xl font-black shadow-xl shadow-[#113366]/20 transition-all hover:scale-[1.02] disabled:opacity-30">
                CONFIRMAR PASSAGEM DE TURNO
             </button>
          </div>
@@ -588,10 +613,13 @@ const toasts = ref([]);
 const loading = ref(false);
 
 // Helpers
-const getLiderQty = (inv) => {
+const getLiderQty = (inv, areaId = null) => {
   if (!inv) return 0;
-  if (Array.isArray(inv)) return inv[0]?.quantidade || 0;
-  return inv.quantidade || 0;
+  const items = Array.isArray(inv) ? inv : [inv];
+  if (areaId) {
+    return items.find(i => i.area_id === areaId)?.quantidade || 0;
+  }
+  return items.reduce((sum, i) => sum + (i.quantidade || 0), 0);
 };
 const areas = ref([]);
 const lideres = ref([]);
@@ -605,7 +633,7 @@ const filtroOnPage = ref({ data: '', turno: '' });
 
 // Forms
 const opType = ref('saida');
-const formOp = ref({ lider_id: '', quantidade: 1, observacao: '' });
+const formOp = ref({ lider_id: '', area_id: '', quantidade: 1, observacao: '' });
 const formPlan = ref({ data: '', turno: 'T1', areas: {} });
 const formNewArea = ref({ id: null, nome: '', quantidade_total: 0 });
 const formNewLider = ref({ nome: '', area_id: '', turno: 'T1' });
@@ -614,8 +642,8 @@ const editingLider = ref(null);
 
 const showNewTransferModal = ref(false);
 const showHandoverModal = ref(false);
-const formHandover = ref({ origem_id: '', destino_id: '', quantidade: 0 });
-const formTransfer = ref({ origem_id: '', destino_id: '', quantidade: 1 });
+const formHandover = ref({ origem_id: '', destino_id: '', area_id: '', quantidade: 0 });
+const formTransfer = ref({ origem_id: '', area_origem_id: '', destino_id: '', area_id: '', quantidade: 1 });
 
 const tabs = [
   { id: 'dash', label: 'Dashboard', icon: 'ph-squares-four' },
@@ -633,10 +661,8 @@ const pendingTransfersCount = computed(() => pendingTransfers.value.length);
 
 const inventoryByArea = computed(() => {
   return areas.value.map(area => {
-    // In Use: soma das quantidades de PDAs com líderes desta área
-    const inUse = lideres.value
-      .filter(l => l.area_id === area.id)
-      .reduce((sum, l) => sum + getLiderQty(l.lider_inventory), 0);
+    // In Use: soma das quantidades de PDAs em cada área (agora salvo no inventory)
+    const inUse = lideres.value.reduce((sum, l) => sum + getLiderQty(l.lider_inventory, area.id), 0);
     
     return {
       ...area,
@@ -648,7 +674,10 @@ const inventoryByArea = computed(() => {
 
 const kpis = computed(() => {
   const totalPool = areas.value.reduce((sum, a) => sum + a.quantidade_total, 0);
-  const totalInUse = lideres.value.reduce((sum, l) => sum + getLiderQty(l.lider_inventory), 0);
+  const totalInUse = areas.value.reduce((sum, a) => {
+      const areaInv = inventoryByArea.value.find(area => area.id === a.id);
+      return sum + (areaInv?.inUse || 0);
+  }, 0);
   return {
     total: totalPool,
     disponiveis: totalPool - totalInUse,
@@ -672,13 +701,12 @@ const leadersWithStock = computed(() => {
 
 const currentLiderQty = computed(() => {
    const l = lideres.value.find(lid => lid.id === formOp.value.lider_id);
-   return getLiderQty(l?.lider_inventory);
+   return getLiderQty(l?.lider_inventory, formOp.value.area_id);
 });
 
 const areaAvailableQty = computed(() => {
-   const l = lideres.value.find(lid => lid.id === formOp.value.lider_id);
-   if (!l) return 0;
-   const area = inventoryByArea.value.find(a => a.id === l.area_id);
+   if (!formOp.value.area_id) return 0;
+   const area = inventoryByArea.value.find(a => a.id === formOp.value.area_id);
    return area?.available || 0;
 });
 
@@ -687,15 +715,18 @@ const opMax = computed(() => opType.value === 'saida' ? areaAvailableQty.value :
 const isOpValid = computed(() => {
    return adminUser.value && 
           formOp.value.lider_id && 
+          formOp.value.area_id &&
           formOp.value.quantidade > 0 && 
           formOp.value.quantidade <= opMax.value;
 });
 
 const otherLideresForTransfer = computed(() => lideres.value.filter(l => l.id !== formTransfer.value.origem_id));
 const isTransferValid = computed(() => {
-   const sourceQty = getLiderQty(lideres.value.find(l => l.id === formTransfer.value.origem_id)?.lider_inventory);
+   const sourceQty = getLiderQty(lideres.value.find(l => l.id === formTransfer.value.origem_id)?.lider_inventory, formTransfer.value.area_origem_id);
    return formTransfer.value.origem_id && 
+          formTransfer.value.area_origem_id &&
           formTransfer.value.destino_id && 
+          formTransfer.value.area_id &&
           formTransfer.value.quantidade > 0 && 
           formTransfer.value.quantidade <= sourceQty;
 });
@@ -704,11 +735,13 @@ const onPageList = computed(() => {
   if (!filtroOnPage.value.data || !filtroOnPage.value.turno) return [];
   return areas.value.map(area => {
     const plan = planejamento.value.find(p => p.area_id === area.id && p.data === filtroOnPage.value.data && p.turno === filtroOnPage.value.turno);
-    const areaInventory = inventoryByArea.value.find(a => a.id === area.id);
+    // Realizado: soma de todos os PDAs em posse de líderes PARA ESTA ÁREA específica
+    const realizado = lideres.value.reduce((sum, l) => sum + getLiderQty(l.lider_inventory, area.id), 0);
+    
     return {
       areaId: area.id,
       areaNome: area.nome,
-      realizado: areaInventory?.inUse || 0,
+      realizado,
       planejado: plan ? plan.quantidade : 0
     };
   }).filter(a => a.planejado > 0 || a.realizado > 0);
@@ -764,17 +797,17 @@ const fetchInitialData = async () => {
 const handleRecordingOp = async () => {
   loading.value = true;
   try {
-    const { lider_id, quantidade, observacao } = formOp.value;
+    const { lider_id, area_id, quantidade, observacao } = formOp.value;
     const typeLabel = opType.value === 'saida' ? 'Saída' : 'Retorno';
     
-    // 1. Update Leader Inventory
+    // 1. Update Leader Inventory (Specifc to the Area)
     const leader = lideres.value.find(l => l.id === lider_id);
-    const currentQty = getLiderQty(leader?.lider_inventory);
-    const newQty = opType.value === 'saida' ? currentQty + (quantidade || 0) : currentQty - (quantidade || 0);
+    const currentAreaQty = getLiderQty(leader?.lider_inventory, area_id);
+    const newAreaQty = opType.value === 'saida' ? currentAreaQty + (quantidade || 0) : currentAreaQty - (quantidade || 0);
     
-    const payload = { lider_id, quantidade: newQty, last_updated: new Date().toISOString() };
+    const payload = { lider_id, area_id, quantidade: newAreaQty, last_updated: new Date().toISOString() };
     console.log('Upserting inventory:', payload);
-    const { error: invError } = await supabase.from('lider_inventory').upsert(payload, { onConflict: 'lider_id' });
+    const { error: invError } = await supabase.from('lider_inventory').upsert(payload, { onConflict: 'lider_id,area_id' });
     if (invError) {
       console.error('Inventory Error:', invError);
       throw invError;
@@ -783,6 +816,7 @@ const handleRecordingOp = async () => {
     // 2. Record Movement
     const { error: movError } = await supabase.from('movimentacoes').insert({
       lider_id,
+      area_id,
       tipo: typeLabel,
       quantidade,
       admin_id: adminUser.value,
@@ -791,7 +825,7 @@ const handleRecordingOp = async () => {
     if (movError) throw movError;
 
     showMessage(`${typeLabel} de ${quantidade} PDAs registrada com sucesso!`);
-    formOp.value = { lider_id: '', quantidade: 1, observacao: '' };
+    formOp.value = { lider_id: '', area_id: '', quantidade: 1, observacao: '' };
     await fetchInitialData();
   } catch (e) {
     showMessage(e.message, 'erro');
@@ -805,7 +839,9 @@ const handleCreateTransfer = async () => {
    try {
       const { error } = await supabase.from('trocas_pendentes').insert({
          lider_origem_id: formTransfer.value.origem_id,
+         area_origem_id: formTransfer.value.area_origem_id,
          lider_destino_id: formTransfer.value.destino_id,
+         area_id: formTransfer.value.area_id,
          quantidade: formTransfer.value.quantidade,
          status: 'PENDENTE'
       });
@@ -824,26 +860,27 @@ const handleCreateTransfer = async () => {
 
 const handleActionTransfer = async (transfer, status) => {
    loading.value = true;
-   try {
-      if (status === 'APROVADO') {
-         // Perform standard quantity swap
-         const origId = transfer.lider_origem_id;
-         const destId = transfer.lider_destino_id;
-         const qty = transfer.quantidade;
+    try {
+       if (status === 'APROVADO') {
+          const { lider_origem_id: origId, area_origem_id: origAreaId, lider_destino_id: destId, area_id: destAreaId, quantidade: qty } = transfer;
 
-         const origQty = lideres.value.find(l => l.id === origId)?.lider_inventory?.[0]?.quantidade || 0;
-         const destQty = lideres.value.find(l => l.id === destId)?.lider_inventory?.[0]?.quantidade || 0;
+          // 1. Get current quantities for specific areas
+          const leaderOrig = lideres.value.find(l => l.id === origId);
+          const leaderDest = lideres.value.find(l => l.id === destId);
+          
+          const currentOrigQty = getLiderQty(leaderOrig?.lider_inventory, origAreaId);
+          const currentDestQty = getLiderQty(leaderDest?.lider_inventory, destAreaId);
 
-         // Atomic updates not strictly possible without Rpc, but we'll sequential for simplicity in this demo
-         await supabase.from('lider_inventory').upsert({ lider_id: origId, quantidade: origQty - qty, last_updated: new Date() });
-         await supabase.from('lider_inventory').upsert({ lider_id: destId, quantidade: destQty + qty, last_updated: new Date() });
+          // 2. Update Inventories (Atomic-ish)
+          await supabase.from('lider_inventory').upsert({ lider_id: origId, area_id: origAreaId, quantidade: currentOrigQty - qty, last_updated: new Date().toISOString() }, { onConflict: 'lider_id,area_id' });
+          await supabase.from('lider_inventory').upsert({ lider_id: destId, area_id: destAreaId, quantidade: currentDestQty + qty, last_updated: new Date().toISOString() }, { onConflict: 'lider_id,area_id' });
 
-         // Log Movements
-         await supabase.from('movimentacoes').insert([
-            { lider_id: origId, tipo: 'Transferência-Enviada', quantidade: qty, admin_id: adminUser.value, origem_destino_id: destId },
-            { lider_id: destId, tipo: 'Transferência-Recebida', quantidade: qty, admin_id: adminUser.value, origem_destino_id: origId }
-         ]);
-      }
+          // 3. Log Movements with Area Context
+          await supabase.from('movimentacoes').insert([
+             { lider_id: origId, area_id: origAreaId, tipo: 'Transferência-Enviada', quantidade: qty, admin_id: adminUser.value, origem_destino_id: destId, observacao: `Enviado para ${leaderDest?.nome}` },
+             { lider_id: destId, area_id: destAreaId, tipo: 'Transferência-Recebida', quantidade: qty, admin_id: adminUser.value, origem_destino_id: origId, observacao: `Recebido de ${leaderOrig?.nome}` }
+          ]);
+       }
 
       await supabase.from('trocas_pendentes').update({ status, admin_id: adminUser.value }).eq('id', typeof transfer === 'string' ? transfer : transfer.id);
       
@@ -909,33 +946,30 @@ const handleDeleteArea = async (id) => {
 };
 
 const openHandoverModal = () => {
-   formHandover.value = { origem_id: '', destino_id: '', quantidade: 0 };
+   formHandover.value = { origem_id: '', destino_id: '', area_id: '', quantidade: 0 };
    showHandoverModal.value = true;
 };
 
 const handleShiftHandover = async () => {
     loading.value = true;
     try {
-        const { origem_id, destino_id, quantidade } = formHandover.value;
+        const { origem_id, destino_id, area_id, quantidade } = formHandover.value;
         const leaderOrigem = lideres.value.find(l => l.id === origem_id);
         const leaderDestino = lideres.value.find(l => l.id === destino_id);
         
-        if (!leaderOrigem || !leaderDestino) throw new Error('Selecione os dois líderes.');
+        if (!leaderOrigem || !leaderDestino || !area_id) throw new Error('Complete todos os campos.');
 
-        // 1. Zera estoque do que sai
-        await supabase.from('lider_inventory').upsert({ lider_id: origem_id, quantidade: 0, last_updated: new Date().toISOString() }, { onConflict: 'lider_id' });
+        // 1. Zera TODO o estoque do líder que sai (em todas as áreas)
+        await supabase.from('lider_inventory').delete().eq('lider_id', origem_id);
         
-        // 2. Define estoque do que entra
-        await supabase.from('lider_inventory').upsert({ lider_id: destino_id, quantidade, last_updated: new Date().toISOString() }, { onConflict: 'lider_id' });
+        // 2. Define o novo estoque para o líder que entra NA ÁREA selecionada
+        await supabase.from('lider_inventory').upsert({ lider_id: destino_id, area_id, quantidade, last_updated: new Date().toISOString() }, { onConflict: 'lider_id,area_id' });
 
         // 3. Log Movimentações
-        // Para o histórico ficar claro: 
-        // a) Saída total do líder anterior
-        // b) Entrada total do novo líder
-        const qtyOrigem = getLiderQty(leaderOrigem.lider_inventory);
+        const qtyOrigemTotal = getLiderQty(leaderOrigem.lider_inventory);
         await supabase.from('movimentacoes').insert([
-            { lider_id: origem_id, tipo: 'Retorno', quantidade: qtyOrigem, admin_id: adminUser.value, observacao: `Passagem de turno para ${leaderDestino.nome}` },
-            { lider_id: destino_id, tipo: 'Saída', quantidade: quantidade, admin_id: adminUser.value, observacao: `Recebido em passagem de turno de ${leaderOrigem.nome}` }
+            { lider_id: origem_id, tipo: 'Retorno', quantidade: qtyOrigemTotal, admin_id: adminUser.value, observacao: `Passagem de turno (Saída Total) para ${leaderDestino.nome}` },
+            { lider_id: destino_id, area_id, tipo: 'Saída', quantidade: quantidade, admin_id: adminUser.value, observacao: `Passagem de turno (Entrada em ${areas.value.find(a => a.id === area_id)?.nome}) de ${leaderOrigem.nome}` }
         ]);
 
         showMessage('Passagem de turno realizada com sucesso!');
